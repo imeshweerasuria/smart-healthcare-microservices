@@ -3,7 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("../../../shared/config/db");
-const authRoutes = require("./routes/auth.routes");
+const apptRoutes = require("./routes/appointment.routes");
 
 const app = express();
 
@@ -16,14 +16,14 @@ connectDB(process.env.MONGO_URI);
 
 // Health check route
 app.get("/health", (req, res) => {
-  res.json({ service: "auth-service", ok: true });
+  res.json({ service: "appointment-service", ok: true });
 });
 
-// Auth routes
-app.use("/auth", authRoutes);
+// Appointment routes
+app.use("/appointments", apptRoutes);
 
 // Server start
-const PORT = process.env.PORT || 4001;
+const PORT = process.env.PORT || 4004;
 app.listen(PORT, () => {
-  console.log(`auth-service running on :${PORT}`);
+  console.log(`appointment-service running on :${PORT}`);
 });
