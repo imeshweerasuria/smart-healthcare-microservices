@@ -1,7 +1,7 @@
 const express = require("express");
 const multer = require("multer");
 const PatientProfile = require("../models/PatientProfile");
-const { requireAuth, requireRole } = require("../../../shared/middleware/auth");
+const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
 
 const router = express.Router();
 

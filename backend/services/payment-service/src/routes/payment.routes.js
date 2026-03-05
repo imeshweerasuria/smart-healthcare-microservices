@@ -1,6 +1,6 @@
 const express = require("express");
 const Payment = require("../models/Payment");
-const { requireAuth } = require("../../../shared/middleware/auth");
+const { requireAuth } = require("../../../../shared/middleware/auth");
 
 const router = express.Router();
 
@@ -29,3 +29,5 @@ router.post("/mark-paid", requireAuth, async (req, res) => {
  await p.save();
  res.json({ ok: true, payment: p });
 });
+
+module.exports = router;

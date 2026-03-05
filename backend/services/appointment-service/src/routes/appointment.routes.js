@@ -1,6 +1,6 @@
 const express = require("express");
 const Appointment = require("../models/Appointment");
-const { requireAuth, requireRole } = require("../../../shared/middleware/auth");
+const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
 
 const router = express.Router();
 
