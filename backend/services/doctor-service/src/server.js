@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const connectDB = require("../../../shared/config/db");
 const doctorRoutes = require("./routes/doctor.routes");
+const prescriptionRoutes = require("./routes/prescription.routes");
 
 const app = express();
 
@@ -21,6 +22,7 @@ app.get("/health", (req, res) =>
 
 // Doctor Routes
 app.use("/doctors", doctorRoutes);
+app.use("/prescriptions", prescriptionRoutes);
 
 // Server Port
 const PORT = process.env.PORT || 4003;
