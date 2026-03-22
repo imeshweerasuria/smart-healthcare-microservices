@@ -8,6 +8,8 @@ export default function PatientDashboard() {
        <li><Link to="/patient/doctors">Browse Doctors</Link></li>
        <li><Link to="/patient/appointments">My Appointments</Link></li>
        <li><Link to="/patient/upload">Upload Medical Reports</Link></li>
+        <li><Link to="/patient/reports">My Reports</Link></li>
+       <li><Link to="/patient/prescriptions">My Prescriptions</Link></li>
      </ul>
    </div>
  );
