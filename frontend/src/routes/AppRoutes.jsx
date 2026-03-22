@@ -19,6 +19,7 @@ export default function AppRoutes() {
         <Route path="/patient/upload" element={<UploadReports />} />
         <Route path="/doctor" element={<DoctorDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/patient/pay" element={<PaymentForAppointment />} />
 
         <Route path="*" element={<div>404 - Not Found</div>} />
       </Routes>
