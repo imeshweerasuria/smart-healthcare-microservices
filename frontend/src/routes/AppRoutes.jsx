@@ -5,6 +5,10 @@ import PatientDashboard from "../pages/patient/PatientDashboard";
 import DoctorDashboard from "../pages/doctor/DoctorDashboard";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import UploadReports from "../pages/patient/UploadReports";
+import BrowseDoctors from "../pages/patient/BrowseDoctors";
+import BookAppointment from "../pages/patient/BookAppointment";
+import MyAppointments from "../pages/patient/MyAppointments";
+
 
 export default function AppRoutes() {
   return (
@@ -20,6 +24,12 @@ export default function AppRoutes() {
         <Route path="/doctor" element={<DoctorDashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/patient/pay" element={<PaymentForAppointment />} />
+
+        <Route path="/patient/doctors" element={<BrowseDoctors />} />
+        <Route path="/patient/book/:doctorId" element={<BookAppointment />} />
+        <Route path="/patient/appointments" element={<MyAppointments />} />
+        <Route path="/patient/upload" element={<UploadReports />} />
+
 
         <Route path="*" element={<div>404 - Not Found</div>} />
       </Routes>
