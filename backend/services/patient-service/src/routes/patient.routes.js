@@ -2,6 +2,8 @@ const express = require("express");
 const multer = require("multer");
 const PatientProfile = require("../models/PatientProfile");
 const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
+const axios = require("axios");
+const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
 
 const router = express.Router();
 
@@ -56,5 +58,13 @@ router.post(
    res.json({ message: "Uploaded", file: req.file.filename });
  }
 );
+
+// Get my prescriptions
+router.get("/me/prescriptions", requireAuth, requireRole("PATIENT"), async (req, res) => {
+ const r = await axios.get(`${DOCTOR_URL}/prescriptions/patient/me`, {
+   headers: { Authorization: req.headers.authorization },
+ });
+ res.json(r.data);
+});
 
 module.exports = router;
