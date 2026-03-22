@@ -15,3 +15,6 @@ app.use("/notify", notifyRoutes);
 
 const PORT = process.env.PORT || 4006;
 app.listen(PORT, () => console.log(`notification-service running on :${PORT}`));
+
+const notifyRoutes = require("./routes/notify.routes");
+app.use("/notify", notifyRoutes);

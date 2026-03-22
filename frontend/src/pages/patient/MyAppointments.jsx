@@ -38,6 +38,13 @@ export default function MyAppointments() {
             <b>DoctorId:</b> {a.doctorId} <br />
             <b>Date:</b> {new Date(a.datetime).toLocaleString()} <br />
             <b>Reason:</b> {a.reason}
+            {a.telemedicineLink && (
+              <div>
+                <a href={a.telemedicineLink} target="_blank" rel="noreferrer">
+                  Join Call
+                </a>
+              </div>
+            )}
           </li>
         ))}
       </ul>
