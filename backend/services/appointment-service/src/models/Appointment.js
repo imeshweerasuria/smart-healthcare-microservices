@@ -6,11 +6,23 @@ const AppointmentSchema = new mongoose.Schema(
     doctorId: { type: String, required: true },
     datetime: { type: Date, required: true },
     reason: { type: String, default: "" },
+
     status: {
       type: String,
       enum: ["PENDING", "ACCEPTED", "REJECTED", "CANCELLED", "COMPLETED"],
       default: "PENDING",
     },
+
+    // NEW FIELDS
+    telemedicineLink: { type: String, default: "" },
+
+    paymentStatus: {
+      type: String,
+      enum: ["UNPAID", "PAID"],
+      default: "UNPAID",
+    },
+
+    patientEmail: { type: String, default: "" },
   },
   { timestamps: true }
 );
