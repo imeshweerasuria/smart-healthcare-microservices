@@ -1,8 +1,12 @@
 const express = require("express");
+const axios = require("axios");
 const Payment = require("../models/Payment");
 const { requireAuth } = require("../../../../shared/middleware/auth");
 
 const router = express.Router();
+
+// Appointment service URL
+const APPOINTMENT_URL = process.env.APPOINTMENT_URL || "http://localhost:4004";
 
 /**
  * Create payment for an appointment (acts like "intent")
@@ -24,7 +28,7 @@ router.post("/for-appointment", requireAuth, async (req, res) => {
       userId: req.user.userId,
       amount,
       status: "PENDING",
-      provider: "STRIPE_TEST", // keep for future Stripe integration
+      provider: "STRIPE_TEST",
     });
 
     res.json({
@@ -40,8 +44,7 @@ router.post("/for-appointment", requireAuth, async (req, res) => {
 });
 
 /**
- * Optional alias (kept from your second code)
- * Same logic, different route name
+ * Optional alias (same logic)
  */
 router.post("/create-intent", requireAuth, async (req, res) => {
   try {
@@ -76,7 +79,7 @@ router.post("/create-intent", requireAuth, async (req, res) => {
 });
 
 /**
- * Mark payment as PAID (temporary for demo/testing)
+ * Mark payment as PAID + notify appointment service
  */
 router.post("/mark-paid", requireAuth, async (req, res) => {
   try {
@@ -92,17 +95,34 @@ router.post("/mark-paid", requireAuth, async (req, res) => {
       return res.status(404).json({ message: "Payment not found" });
     }
 
+    // Update payment status
     payment.status = "PAID";
     await payment.save();
+
+    // 🔥 Notify Appointment Service
+    await axios.put(
+      `${APPOINTMENT_URL}/appointments/${payment.appointmentId}/confirm-payment`,
+      {},
+      {
+        headers: {
+          Authorization: req.headers.authorization,
+        },
+      }
+    );
 
     res.json({
       ok: true,
       payment,
-      message: "Payment marked as PAID",
+      message: "Payment marked as PAID & appointment updated",
     });
 
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Error in mark-paid:", err.message);
+
+    res.status(500).json({
+      message: "Payment updated but appointment sync failed",
+      error: err.message,
+    });
   }
 });
 
