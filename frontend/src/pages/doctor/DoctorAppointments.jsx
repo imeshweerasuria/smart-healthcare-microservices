@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react"; 
 import axios from "axios"; 
+
 export default function DoctorAppointments() { 
 const [list, setList] = useState([]); 
+
 const load = async () => { 
 const token = localStorage.getItem("token"); 
 const res = await axios.get("http://localhost:4004/appointments/doctor/me", { 
@@ -9,9 +11,11 @@ headers: { Authorization: `Bearer ${token}` },
 }); 
 setList(res.data); 
 }; 
+
 useEffect(() => { 
 load(); 
 }, []); 
+
 const updateStatus = async (id, status) => { 
 try { 
 const token = localStorage.getItem("token"); 
@@ -40,6 +44,14 @@ const token = localStorage.getItem("token");
          <p><b>PatientId:</b> {a.patientId}</p> 
          <p><b>Date:</b> {new Date(a.datetime).toLocaleString()}</p> 
          <p><b>Reason:</b> {a.reason}</p> 
+
+         {a.telemedicineLink && ( 
+           <div> 
+             <a href={a.telemedicineLink} target="_blank" rel="noreferrer"> 
+               Open Call Link 
+             </a> 
+           </div> 
+         )} 
  
          {a.status === "PENDING" && ( 
            <> 
@@ -51,4 +63,4 @@ const token = localStorage.getItem("token");
      ))} 
    </div> 
  ); 
-} 
+}
