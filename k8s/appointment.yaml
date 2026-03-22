@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: appointment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: appointment
+  template:
+    metadata:
+      labels:
+        app: appointment
+    spec:
+      containers:
+        - name: appointment
+          image: smart/appointment-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4004
+          env:
+            - name: PORT
+              value: "4004"
+            - name: JWT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: JWT_SECRET
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: smart-secrets
+                  key: MONGO_URI
+            - name: TELEMEDICINE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: TELEMEDICINE_URL
+            - name: NOTIFICATION_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: NOTIFICATION_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: appointment-service
+spec:
+  selector:
+    app: appointment
+  ports:
+    - port: 4004
+      targetPort: 4004
