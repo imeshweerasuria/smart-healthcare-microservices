@@ -2,7 +2,7 @@ const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
 
-const teleRoutes = require("./routes/tele.routes");
+const teleRoutes = require("./routes/telemedicine.routes");
 
 const app = express();
 
