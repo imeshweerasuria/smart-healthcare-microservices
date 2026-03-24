@@ -1,17 +1,13 @@
-FROM node:22-alpine
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy ONLY what this service needs + shared
-COPY backend/services/appointment-service/package*.json ./backend/services/appointment-service/
-COPY backend/shared ./backend/shared
-
-# Install deps for THIS service
-WORKDIR /app/backend/services/appointment-service
+COPY backend/services/appointment-service/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy service source
-COPY backend/services/appointment-service ./
+COPY backend/shared ./shared
+COPY backend/services/appointment-service ./services/appointment-service
 
 EXPOSE 4004
-CMD ["node", "src/server.js"]
+
+CMD ["node", "services/appointment-service/src/server.js"]

@@ -1,17 +1,13 @@
-FROM node:22-alpine
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy ONLY what this service needs + shared
-COPY backend/services/doctor-service/package*.json ./backend/services/doctor-service/
-COPY backend/shared ./backend/shared
-
-# Install deps for THIS service
-WORKDIR /app/backend/services/doctor-service
+COPY backend/services/doctor-service/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy service source
-COPY backend/services/doctor-service ./
+COPY backend/shared ./shared
+COPY backend/services/doctor-service ./services/doctor-service
 
 EXPOSE 4003
-CMD ["node", "src/server.js"]
+
+CMD ["node", "services/doctor-service/src/server.js"]

@@ -1,17 +1,13 @@
-FROM node:22-alpine
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy ONLY what this service needs + shared
-COPY backend/services/auth-service/package*.json ./backend/services/auth-service/
-COPY backend/shared ./backend/shared
-
-# Install deps for THIS service
-WORKDIR /app/backend/services/auth-service
+COPY backend/services/auth-service/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy service source
-COPY backend/services/auth-service ./
+COPY backend/shared ./shared
+COPY backend/services/auth-service ./services/auth-service
 
 EXPOSE 4001
-CMD ["node", "src/server.js"]
+
+CMD ["node", "services/auth-service/src/server.js"]
