@@ -2,13 +2,16 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-# Install dependencies
-COPY package*.json ./
+# Copy ONLY what this service needs + shared
+COPY backend/services/notification-service/package*.json ./backend/services/notification-service/
+COPY backend/shared ./backend/shared
+
+# Install deps for THIS service
+WORKDIR /app/backend/services/notification-service
 RUN npm ci --omit=dev
 
-# Copy source
-COPY . .
+# Copy service source
+COPY backend/services/notification-service ./
 
-EXPOSE 4000
-
+EXPOSE 4006
 CMD ["node", "src/server.js"]
