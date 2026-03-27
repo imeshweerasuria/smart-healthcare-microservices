@@ -1,13 +1,14 @@
 FROM node:20-alpine
 
-WORKDIR /app/backend
+WORKDIR /app
 
-COPY backend/services/patient-service/package*.json ./
+COPY backend/services/patient-service/package*.json ./backend/services/patient-service/
+COPY backend/shared ./backend/shared
+
+WORKDIR /app/backend/services/patient-service
 RUN npm ci --omit=dev
 
-COPY backend/shared ./shared
-COPY backend/services/patient-service ./services/patient-service
+COPY backend/services/patient-service ./
 
 EXPOSE 4002
-
-CMD ["node", "services/patient-service/src/server.js"]
+CMD ["node", "src/server.js"]
