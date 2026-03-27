@@ -1,14 +1,12 @@
 FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/backend
 
-COPY backend/services/appointment-service/package*.json ./backend/services/appointment-service/
-COPY backend/shared ./backend/shared
-
-WORKDIR /app/backend/services/appointment-service
+COPY backend/services/appointment-service/package*.json ./
 RUN npm ci --omit=dev
 
-COPY backend/services/appointment-service ./
+COPY backend/shared ./shared
+COPY backend/services/appointment-service ./services/appointment-service
 
 EXPOSE 4004
-CMD ["node", "src/server.js"]
+CMD ["node", "services/appointment-service/src/server.js"]
