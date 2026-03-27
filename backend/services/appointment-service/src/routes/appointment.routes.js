@@ -10,7 +10,6 @@ const TELEMEDICINE_URL = process.env.TELEMEDICINE_URL || "http://localhost:4005"
 const NOTIFICATION_URL = process.env.NOTIFICATION_URL || "http://localhost:4006";
 const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
 
-// Create appointment (PATIENT)
 router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
  try {
    const { doctorId, datetime, reason } = req.body;
@@ -72,19 +71,16 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
  }
 });
 
-// My appointments (PATIENT)
 router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
  const list = await Appointment.find({ patientId: req.user.userId }).sort({ createdAt: -1 });
  res.json(list);
 });
 
-// Doctor appointments (DOCTOR)
 router.get("/doctor/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
  const list = await Appointment.find({ doctorId: req.user.userId }).sort({ createdAt: -1 });
  res.json(list);
 });
 
-// Get single appointment
 router.get("/:id", requireAuth, async (req, res) => {
  try {
    const appt = await Appointment.findById(req.params.id);
@@ -104,7 +100,6 @@ router.get("/:id", requireAuth, async (req, res) => {
  }
 });
 
-// Doctor accept/reject
 router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) => {
  try {
    const { status } = req.body;
@@ -150,7 +145,6 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
  }
 });
 
-// Confirm payment
 router.put("/:id/confirm-payment", requireAuth, async (req, res) => {
  try {
    const appt = await Appointment.findById(req.params.id);
@@ -174,7 +168,6 @@ router.put("/:id/confirm-payment", requireAuth, async (req, res) => {
  }
 });
 
-// Cancel appointment (PATIENT)
 router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res) => {
  try {
    const appt = await Appointment.findById(req.params.id);
@@ -191,13 +184,24 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
    appt.status = "CANCELLED";
    await appt.save();
 
+   if (appt.patientEmail) {
+     try {
+       await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+         to: appt.patientEmail,
+         subject: "Appointment Cancelled",
+         text: `Your appointment ${appt._id} has been cancelled.`,
+       });
+     } catch (notifyErr) {
+       console.error("Cancel email failed:", notifyErr.message);
+     }
+   }
+
    res.json({ message: "Appointment cancelled", appointment: appt });
  } catch (e) {
    res.status(500).json({ message: "Server error" });
  }
 });
 
-// Reschedule appointment (PATIENT)
 router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req, res) => {
  try {
    const { datetime } = req.body;
@@ -222,11 +226,34 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
      return res.status(400).json({ message: "Appointment cannot be rescheduled now" });
    }
 
+   const overlapping = await Appointment.findOne({
+     _id: { $ne: appt._id },
+     doctorId: appt.doctorId,
+     datetime: parsedDate,
+     status: { $in: ["PENDING", "ACCEPTED", "CONFIRMED"] },
+   });
+
+   if (overlapping) {
+     return res.status(409).json({ message: "This new slot is already taken" });
+   }
+
    appt.datetime = parsedDate;
    appt.status = "PENDING";
    appt.paymentStatus = "UNPAID";
    appt.telemedicineLink = "";
    await appt.save();
+
+   if (appt.patientEmail) {
+     try {
+       await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+         to: appt.patientEmail,
+         subject: "Appointment Rescheduled",
+         text: `Your appointment ${appt._id} has been rescheduled to ${parsedDate.toLocaleString()}. Status reset to PENDING.`,
+       });
+     } catch (notifyErr) {
+       console.error("Reschedule email failed:", notifyErr.message);
+     }
+   }
 
    res.json({ message: "Appointment rescheduled", appointment: appt });
  } catch (e) {
@@ -234,7 +261,6 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
  }
 });
 
-// Complete appointment (DOCTOR or ADMIN)
 router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async (req, res) => {
  try {
    const appt = await Appointment.findById(req.params.id);
