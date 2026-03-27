@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("../../../../shared/config/mongoose");
 
 const AppointmentSchema = new mongoose.Schema(
  {
