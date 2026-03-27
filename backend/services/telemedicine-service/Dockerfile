@@ -1,17 +1,8 @@
-FROM node:22-alpine
-
-WORKDIR /app
-
-# Copy ONLY what this service needs + shared
-COPY backend/services/telemedicine-service/package*.json ./backend/services/telemedicine-service/
-COPY backend/shared ./backend/shared
-
-# Install deps for THIS service
-WORKDIR /app/backend/services/telemedicine-service
-RUN npm ci --omit=dev
-
-# Copy service source
-COPY backend/services/telemedicine-service ./
-
-EXPOSE 4005
-CMD ["node", "src/server.js"]
+FROM node:20-alpine 
+WORKDIR /app/backend 
+COPY backend/services/telemedicine-service/package*.json ./ 
+RUN npm ci --omit=dev 
+COPY backend/shared ./shared 
+COPY backend/services/telemedicine-service ./services/telemedicine-service 
+EXPOSE 4005 
+CMD ["node", "services/telemedicine-service/src/server.js"] 
