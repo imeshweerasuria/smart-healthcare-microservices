@@ -6,16 +6,24 @@ const router = express.Router();
 const PATIENT_URL = process.env.PATIENT_URL || "http://localhost:4002"; 
 // List doctors (with optional specialty filter) 
 router.get("/", async (req, res) => { 
+try { 
+const { specialty } = req.query; 
+const query = {}; 
+if (specialty) { 
+query.specialty = { $regex: specialty, $options: "i" }; 
+} 
+const list = await DoctorProfile.find(query).sort({ createdAt: -1 }); 
+res.json(list); 
+} catch (e) { 
+res.status(500).json({ message: "Server error" }); 
+} 
+}); 
+// Get single doctor by doctor userId 
+router.get("/:doctorUserId", async (req, res) => { 
  try { 
-   const { specialty } = req.query; 
- 
-   const query = {}; 
-   if (specialty) { 
-     query.specialty = { $regex: specialty, $options: "i" }; 
-   } 
- 
-   const list = await DoctorProfile.find(query).sort({ createdAt: -1 }); 
-   res.json(list); 
+   const profile = await DoctorProfile.findOne({ userId: req.params.doctorUserId }); 
+   if (!profile) return res.status(404).json({ message: "Doctor not found" }); 
+   res.json(profile); 
  } catch (e) { 
    res.status(500).json({ message: "Server error" }); 
  } 
@@ -73,6 +81,28 @@ router.put("/me/availability", requireAuth, requireRole("DOCTOR"), async (req, r
    res.status(500).json({ message: "Server error" }); 
  } 
 }); 
+ 
+// View patient full profile 
+router.get( 
+ "/patient/:patientId/profile", 
+ requireAuth, 
+ requireRole("DOCTOR", "ADMIN"), 
+ async (req, res) => { 
+   try { 
+     const r = await axios.get( 
+       `${PATIENT_URL}/patients/${req.params.patientId}/profile`, 
+       { 
+         headers: { Authorization: req.headers.authorization }, 
+       } 
+     ); 
+ 
+     res.json(r.data); 
+   } catch (e) { 
+     console.error("Fetch patient profile error:", e.message); 
+     res.status(500).json({ message: "Failed to fetch patient profile" }); 
+   } 
+ } 
+); 
  
 // View patient uploaded reports 
 router.get( 
