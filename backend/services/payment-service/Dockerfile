@@ -9,5 +9,4 @@ COPY backend/shared ./shared
 COPY backend/services/payment-service ./services/payment-service
 
 EXPOSE 4007
-
 CMD ["node", "services/payment-service/src/server.js"]

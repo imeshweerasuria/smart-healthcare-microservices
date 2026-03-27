@@ -1,22 +1,27 @@
 import { useState } from "react";
 import axios from "axios";
+import { API, authHeaders } from "../../api/client";
 
 export default function PaymentForAppointment() {
  const [appointmentId, setAppointmentId] = useState("");
  const [amount, setAmount] = useState(1000);
 
  const createPayment = async () => {
-   const token = localStorage.getItem("token");
-   const res = await axios.post(
-     "http://localhost:4007/payments/for-appointment",
-     { appointmentId, amount },
-     { headers: { Authorization: `Bearer ${token}` } }
-   );
-   alert("Payment record created: " + res.data.payment._id);
+   try {
+     const res = await axios.post(
+       `${API.payment}/payments/for-appointment`,
+       { appointmentId, amount },
+       { headers: authHeaders() }
+     );
+     alert("Payment record created: " + res.data.payment._id);
+   } catch (err) {
+     console.error(err);
+     alert("Failed to create payment");
+   }
  };
 
  return (
-   <div>
+   <div style={{ padding: 24 }}>
      <h2>Create Payment (Demo)</h2>
      <input
        placeholder="AppointmentId"
