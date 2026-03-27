@@ -7,6 +7,9 @@ const { requireAuth, requireRole } = require("../../../../shared/middleware/auth
 const axios = require("axios");
 
 const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
+const PATIENT_PUBLIC_BASE =
+ process.env.PATIENT_PUBLIC_BASE || "http://localhost:4002";
+
 const router = express.Router();
 
 const uploadDir = path.join(process.cwd(), "uploads");
@@ -39,6 +42,13 @@ const upload = multer({
  fileFilter,
  limits: { fileSize: 5 * 1024 * 1024 },
 });
+
+function serializeReport(report) {
+ return {
+   ...report.toObject?.() || report,
+   downloadUrl: `${PATIENT_PUBLIC_BASE}/uploads/${report.filename}`,
+ };
+}
 
 // Get my profile
 router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
@@ -109,10 +119,12 @@ router.post(
 
      await profile.save();
 
+     const lastReport = profile.reports[profile.reports.length - 1];
+
      res.json({
        message: "Uploaded",
        file: req.file.filename,
-       report: profile.reports[profile.reports.length - 1],
+       report: serializeReport(lastReport),
      });
    } catch (e) {
      res.status(500).json({ message: "Upload failed" });
@@ -126,11 +138,66 @@ router.get("/me/reports", requireAuth, requireRole("PATIENT"), async (req, res) 
    const userId = req.user.userId;
    let profile = await PatientProfile.findOne({ userId });
    if (!profile) profile = await PatientProfile.create({ userId });
-   res.json(profile.reports || []);
+
+   res.json((profile.reports || []).map(serializeReport));
  } catch (e) {
    res.status(500).json({ message: "Server error" });
  }
 });
+
+// Delete my report
+router.delete(
+ "/me/reports/:filename",
+ requireAuth,
+ requireRole("PATIENT"),
+ async (req, res) => {
+   try {
+     const userId = req.user.userId;
+     const { filename } = req.params;
+
+     let profile = await PatientProfile.findOne({ userId });
+     if (!profile) {
+       return res.status(404).json({ message: "Patient profile not found" });
+     }
+
+     const exists = profile.reports.some((r) => r.filename === filename);
+     if (!exists) {
+       return res.status(404).json({ message: "Report not found" });
+     }
+
+     profile.reports = profile.reports.filter((r) => r.filename !== filename);
+     await profile.save();
+
+     const filePath = path.join(uploadDir, filename);
+     if (fs.existsSync(filePath)) {
+       fs.unlinkSync(filePath);
+     }
+
+     res.json({ message: "Report deleted successfully" });
+   } catch (e) {
+     res.status(500).json({ message: "Server error" });
+   }
+ }
+);
+
+// Get patient full profile (DOCTOR or ADMIN)
+router.get(
+ "/:patientId/profile",
+ requireAuth,
+ requireRole("DOCTOR", "ADMIN"),
+ async (req, res) => {
+   try {
+     const profile = await PatientProfile.findOne({ userId: req.params.patientId });
+     if (!profile) {
+       return res.status(404).json({ message: "Patient profile not found" });
+     }
+
+     res.json(profile);
+   } catch (e) {
+     res.status(500).json({ message: "Server error" });
+   }
+ }
+);
 
 // Get reports of a patient (DOCTOR or ADMIN)
 router.get(
@@ -144,7 +211,7 @@ router.get(
        return res.status(404).json({ message: "Patient profile not found" });
      }
 
-     res.json(profile.reports || []);
+     res.json((profile.reports || []).map(serializeReport));
    } catch (e) {
      res.status(500).json({ message: "Server error" });
    }
