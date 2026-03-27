@@ -43,6 +43,7 @@ router.post("/register", async (req, res) => {
      passwordHash,
      role,
      doctorVerified: role === "DOCTOR" ? false : true,
+     isDisabled: false,
    });
 
    const token = signToken(user);
@@ -54,6 +55,7 @@ router.post("/register", async (req, res) => {
      email: user.email,
      name: user.name,
      doctorVerified: user.doctorVerified,
+     isDisabled: user.isDisabled,
    });
  } catch (e) {
    console.error("Register error:", e);
@@ -75,6 +77,14 @@ router.post("/login", async (req, res) => {
      return res.status(401).json({ message: "Invalid credentials" });
    }
 
+   if (user.isDisabled) {
+     return res.status(403).json({ message: "Account is disabled" });
+   }
+
+   if (user.role === "DOCTOR" && !user.doctorVerified) {
+     return res.status(403).json({ message: "Doctor not verified yet" });
+   }
+
    const ok = await bcrypt.compare(password, user.passwordHash);
    if (!ok) {
      return res.status(401).json({ message: "Invalid credentials" });
@@ -89,6 +99,7 @@ router.post("/login", async (req, res) => {
      email: user.email,
      name: user.name,
      doctorVerified: user.doctorVerified,
+     isDisabled: user.isDisabled,
    });
  } catch (e) {
    console.error("Login error:", e);
@@ -154,10 +165,37 @@ router.patch("/doctors/:id/verify", requireAuth, requireRole("ADMIN"), async (re
        email: doctor.email,
        role: doctor.role,
        doctorVerified: doctor.doctorVerified,
+       isDisabled: doctor.isDisabled,
      },
    });
  } catch (e) {
    console.error("Verify doctor error:", e);
+   res.status(500).json({ message: "Server error" });
+ }
+});
+
+// ADMIN - toggle disable user
+router.patch("/users/:id/toggle-disable", requireAuth, requireRole("ADMIN"), async (req, res) => {
+ try {
+   const user = await User.findById(req.params.id);
+   if (!user) return res.status(404).json({ message: "User not found" });
+
+   user.isDisabled = !user.isDisabled;
+   await user.save();
+
+   res.json({
+     message: `User ${user.isDisabled ? "disabled" : "enabled"} successfully`,
+     user: {
+       _id: user._id,
+       name: user.name,
+       email: user.email,
+       role: user.role,
+       doctorVerified: user.doctorVerified,
+       isDisabled: user.isDisabled,
+     },
+   });
+ } catch (e) {
+   console.error("Toggle disable error:", e);
    res.status(500).json({ message: "Server error" });
  }
 });
