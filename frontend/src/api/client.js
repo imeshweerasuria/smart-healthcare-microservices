@@ -5,8 +5,9 @@ export const API = {
  patient: "http://localhost:4002",
  doctor: "http://localhost:4003",
  appointment: "http://localhost:4004",
- payment: "http://localhost:4007",
+ telemedicine: "http://localhost:4005",
  notification: "http://localhost:4006",
+ payment: "http://localhost:4007",
 };
 
 export function getToken() {
