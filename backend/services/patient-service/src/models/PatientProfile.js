@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("../../../../shared/config/mongoose");
 
 const PatientProfileSchema = new mongoose.Schema(
  {
