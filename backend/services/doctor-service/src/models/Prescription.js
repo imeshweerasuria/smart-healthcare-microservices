@@ -1,4 +1,4 @@
-const mongoose = require("mongoose"); 
+const mongoose = require("../../../../shared/config/mongoose");
 const PrescriptionSchema = new mongoose.Schema( 
 { 
 doctorId: { type: String, required: true }, 
