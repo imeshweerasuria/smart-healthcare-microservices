@@ -1,4 +1,4 @@
-const mongoose = require("mongoose");
+const mongoose = require("../../../../shared/config/mongoose");
 
 const UserSchema = new mongoose.Schema(
   {
@@ -10,8 +10,8 @@ const UserSchema = new mongoose.Schema(
       enum: ["PATIENT", "DOCTOR", "ADMIN"],
       required: true,
     },
-    // optional flags:
     doctorVerified: { type: Boolean, default: false },
+    isDisabled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

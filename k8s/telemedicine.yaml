@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemedicine
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: telemedicine
+  template:
+    metadata:
+      labels:
+        app: telemedicine
+    spec:
+      containers:
+        - name: telemedicine
+          image: smart/telemedicine-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4005
+          env:
+            - name: PORT
+              value: "4005"
+            - name: JWT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: JWT_SECRET
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemedicine-service
+spec:
+  selector:
+    app: telemedicine
+  ports:
+    - port: 4005
+      targetPort: 4005

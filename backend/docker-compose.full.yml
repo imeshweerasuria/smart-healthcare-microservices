@@ -1,0 +1,86 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: smart-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  auth:
+    build: ./services/auth-service
+    ports:
+      - "4001:4001"
+    environment:
+      - PORT=4001
+      - MONGO_URI=mongodb://mongo:27017/smart-healthcare
+      - JWT_SECRET=supersecret
+    depends_on:
+      - mongo
+
+  patient:
+    build: ./services/patient-service
+    ports:
+      - "4002:4002"
+    environment:
+      - PORT=4002
+      - MONGO_URI=mongodb://mongo:27017/smart-healthcare
+      - JWT_SECRET=supersecret
+      - DOCTOR_URL=http://doctor:4003
+    depends_on:
+      - mongo
+
+  doctor:
+    build: ./services/doctor-service
+    ports:
+      - "4003:4003"
+    environment:
+      - PORT=4003
+      - MONGO_URI=mongodb://mongo:27017/smart-healthcare
+      - JWT_SECRET=supersecret
+    depends_on:
+      - mongo
+
+  appointment:
+    build: ./services/appointment-service
+    ports:
+      - "4004:4004"
+    environment:
+      - PORT=4004
+      - MONGO_URI=mongodb://mongo:27017/smart-healthcare
+      - JWT_SECRET=supersecret
+      - TELEMEDICINE_URL=http://telemedicine:4005
+      - NOTIFICATION_URL=http://notification:4006
+    depends_on:
+      - mongo
+
+  telemedicine:
+    build: ./services/telemedicine-service
+    ports:
+      - "4005:4005"
+    environment:
+      - PORT=4005
+      - JWT_SECRET=supersecret
+
+  notification:
+    build: ./services/notification-service
+    ports:
+      - "4006:4006"
+    environment:
+      - PORT=4006
+      - JWT_SECRET=supersecret
+
+  payment:
+    build: ./services/payment-service
+    ports:
+      - "4007:4007"
+    environment:
+      - PORT=4007
+      - MONGO_URI=mongodb://mongo:27017/smart-healthcare
+      - JWT_SECRET=supersecret
+      - APPOINTMENT_URL=http://appointment:4004
+    depends_on:
+      - mongo
+
+volumes:
+  mongo_data:

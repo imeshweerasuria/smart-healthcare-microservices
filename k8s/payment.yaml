@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment
+  template:
+    metadata:
+      labels:
+        app: payment
+    spec:
+      containers:
+        - name: payment
+          image: smart/payment-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 4007
+          env:
+            - name: PORT
+              value: "4007"
+            - name: JWT_SECRET
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: JWT_SECRET
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef:
+                  name: smart-secrets
+                  key: MONGO_URI
+            - name: APPOINTMENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: APPOINTMENT_URL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service
+spec:
+  selector:
+    app: payment
+  ports:
+    - port: 4007
+      targetPort: 4007

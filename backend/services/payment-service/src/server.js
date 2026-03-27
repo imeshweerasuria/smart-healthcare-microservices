@@ -11,9 +11,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Database connection
-connectDB(process.env.MONGO_URI);
-
 // Health check route
 app.get("/health", (req, res) => {
   res.json({ service: "payment-service", ok: true });
@@ -22,8 +19,18 @@ app.get("/health", (req, res) => {
 // Payment routes
 app.use("/payments", payRoutes);
 
-// Server start
 const PORT = process.env.PORT || 4007;
-app.listen(PORT, () => {
-  console.log(`payment-service running on :${PORT}`);
-});
+
+async function startServer() {
+  try {
+    await connectDB(process.env.MONGO_URI);
+    app.listen(PORT, () => {
+      console.log(`payment-service running on :${PORT}`);
+    });
+  } catch (err) {
+    console.error("Failed to start payment-service:", err);
+    process.exit(1);
+  }
+}
+
+startServer();
