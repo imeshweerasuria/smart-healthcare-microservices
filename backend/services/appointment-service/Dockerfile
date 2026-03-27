@@ -9,5 +9,4 @@ COPY backend/shared ./shared
 COPY backend/services/appointment-service ./services/appointment-service
 
 EXPOSE 4004
-
 CMD ["node", "services/appointment-service/src/server.js"]

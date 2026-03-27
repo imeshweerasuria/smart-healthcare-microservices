@@ -1,116 +1,116 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { API, authHeaders } from "../../api/client";
 
 export default function MyAppointments() {
-  const [list, setList] = useState([]);
+ const [list, setList] = useState([]);
 
-  useEffect(() => {
-    let isMounted = true;
+ const load = async () => {
+   try {
+     const res = await axios.get(`${API.appointment}/appointments/me`, {
+       headers: authHeaders(),
+     });
+     setList(res.data);
+   } catch (err) {
+     console.error(err);
+     alert("Failed to load appointments");
+   }
+ };
 
-    const load = async () => {
-      const token = localStorage.getItem("token");
+ useEffect(() => {
+   load();
+ }, []);
 
-      const res = await axios.get("http://localhost:4004/appointments/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+ const createPayment = async (appointmentId) => {
+   try {
+     const res = await axios.post(
+       `${API.payment}/payments/for-appointment`,
+       { appointmentId, amount: 1000 },
+       { headers: authHeaders() }
+     );
+     alert(`Payment record created.\nPayment ID: ${res.data.paymentId}`);
+   } catch (err) {
+     console.error(err);
+     alert("Payment create failed");
+   }
+ };
 
-      if (isMounted) {
-        setList(res.data);
-      }
-    };
+ const markPaid = async () => {
+   try {
+     const paymentId = prompt("Enter paymentId to mark PAID:");
+     if (!paymentId) return;
 
-    load();
+     await axios.post(
+       `${API.payment}/payments/mark-paid`,
+       { paymentId },
+       { headers: authHeaders() }
+     );
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+     alert("Marked paid. Refreshing...");
+     load();
+   } catch (err) {
+     console.error(err);
+     alert("Mark paid failed");
+   }
+ };
 
-  return (
-    <div>
-      <h2>My Appointments</h2>
+ const cancelAppointment = async (appointmentId) => {
+   try {
+     await axios.patch(
+       `${API.appointment}/appointments/${appointmentId}/cancel`,
+       {},
+       { headers: authHeaders() }
+     );
+     alert("Appointment cancelled");
+     load();
+   } catch (err) {
+     console.error(err);
+     alert("Cancel failed");
+   }
+ };
 
-      {list.length === 0 && <p>No appointments yet.</p>}
+ return (
+   <div style={{ padding: 24 }}>
+     <h2>My Appointments</h2>
 
-      <ul>
-        {list.map((a) => (
-          <li key={a._id} style={{ marginBottom: "20px" }}>
-            <b>Status:</b> {a.status} <br />
-            <b>DoctorId:</b> {a.doctorId} <br />
-            <b>Date:</b> {new Date(a.datetime).toLocaleString()} <br />
-            <b>Reason:</b> {a.reason} <br />
-            <b>Payment Status:</b> {a.paymentStatus || "NOT PAID"} <br />
+     {list.length === 0 && <p>No appointments yet.</p>}
 
-            {a.telemedicineLink && (
-              <div>
-                <a href={a.telemedicineLink} target="_blank" rel="noreferrer">
-                  Join Call
-                </a>
-              </div>
-            )}
+     <ul>
+       {list.map((a) => (
+         <li key={a._id} style={{ marginBottom: "20px" }}>
+           <b>Status:</b> {a.status} <br />
+           <b>DoctorId:</b> {a.doctorId} <br />
+           <b>Date:</b> {new Date(a.datetime).toLocaleString()} <br />
+           <b>Reason:</b> {a.reason} <br />
+           <b>Payment Status:</b> {a.paymentStatus || "UNPAID"} <br />
 
-            {/* 🔥 Create Payment Button */}
-            {a.status === "ACCEPTED" && a.paymentStatus !== "PAID" && (
-              <button
-                onClick={() => {
-                  const token = localStorage.getItem("token");
+           {a.telemedicineLink && (
+             <div>
+               <a href={a.telemedicineLink} target="_blank" rel="noreferrer">
+                 Join Call
+               </a>
+             </div>
+           )}
 
-                  fetch("http://localhost:4007/payments/for-appointment", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({
-                      appointmentId: a._id,
-                      amount: 1000,
-                    }),
-                  })
-                    .then((r) => r.json())
-                    .then((data) => {
-                      alert(
-                        `Payment record created.\nPayment ID: ${data.paymentId}`
-                      );
-                    })
-                    .catch(() => alert("Payment create failed"));
-                }}
-              >
-                Pay (Create Payment Record)
-              </button>
-            )}
+           {a.status === "ACCEPTED" && a.paymentStatus !== "PAID" && (
+             <div style={{ marginTop: 8 }}>
+               <button onClick={() => createPayment(a._id)}>
+                 Pay (Create Payment Record)
+               </button>
+               <button onClick={markPaid} style={{ marginLeft: 8 }}>
+                 Mark Paid (Demo)
+               </button>
+             </div>
+           )}
 
-            {/* 🔥 Mark Paid Button (Demo) */}
-            {a.status === "ACCEPTED" && a.paymentStatus !== "PAID" && (
-              <button
-                style={{ marginLeft: "10px" }}
-                onClick={() => {
-                  const token = localStorage.getItem("token");
-
-                  const paymentId = prompt("Enter paymentId to mark PAID:");
-                  if (!paymentId) return;
-
-                  fetch("http://localhost:4007/payments/mark-paid", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ paymentId }),
-                  })
-                    .then((r) => r.json())
-                    .then(() => {
-                      alert("Marked paid. Refreshing...");
-                      window.location.reload(); // quick refresh
-                    })
-                    .catch(() => alert("Mark paid failed"));
-                }}
-              >
-                Mark Paid (Demo)
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+           {["PENDING", "ACCEPTED"].includes(a.status) && (
+             <div style={{ marginTop: 8 }}>
+               <button onClick={() => cancelAppointment(a._id)}>Cancel Appointment</button>
+             </div>
+           )}
+         </li>
+       ))}
+     </ul>
+   </div>
+ );
 }

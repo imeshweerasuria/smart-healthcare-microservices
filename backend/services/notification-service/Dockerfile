@@ -1,17 +1,12 @@
-FROM node:22-alpine
+FROM node:20-alpine
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy ONLY what this service needs + shared
-COPY backend/services/notification-service/package*.json ./backend/services/notification-service/
-COPY backend/shared ./backend/shared
-
-# Install deps for THIS service
-WORKDIR /app/backend/services/notification-service
+COPY backend/services/notification-service/package*.json ./
 RUN npm ci --omit=dev
 
-# Copy service source
-COPY backend/services/notification-service ./
+COPY backend/shared ./shared
+COPY backend/services/notification-service ./services/notification-service
 
 EXPOSE 4006
-CMD ["node", "src/server.js"]
+CMD ["node", "services/notification-service/src/server.js"]

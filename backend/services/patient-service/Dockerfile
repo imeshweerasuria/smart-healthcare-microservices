@@ -9,5 +9,4 @@ COPY backend/shared ./shared
 COPY backend/services/patient-service ./services/patient-service
 
 EXPOSE 4002
-
 CMD ["node", "services/patient-service/src/server.js"]
