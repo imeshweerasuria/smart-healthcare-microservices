@@ -21,36 +21,22 @@ export default function MyAppointments() {
    load();
  }, []);
 
- const createPayment = async (appointmentId) => {
+ const startStripeCheckout = async (appointmentId) => {
    try {
      const res = await axios.post(
-       `${API.payment}/payments/for-appointment`,
+       `${API.payment}/payments/checkout-session`,
        { appointmentId, amount: 1000 },
        { headers: authHeaders() }
      );
-     alert(`Payment record created.\nPayment ID: ${res.data.paymentId}`);
+
+     if (res.data.checkoutUrl) {
+       window.location.href = res.data.checkoutUrl;
+     } else {
+       alert("No checkout URL returned");
+     }
    } catch (err) {
      console.error(err);
-     alert("Payment create failed");
-   }
- };
-
- const markPaid = async () => {
-   try {
-     const paymentId = prompt("Enter paymentId to mark PAID:");
-     if (!paymentId) return;
-
-     await axios.post(
-       `${API.payment}/payments/mark-paid`,
-       { paymentId },
-       { headers: authHeaders() }
-     );
-
-     alert("Marked paid. Refreshing...");
-     load();
-   } catch (err) {
-     console.error(err);
-     alert("Mark paid failed");
+     alert(err.response?.data?.message || "Stripe checkout failed");
    }
  };
 
@@ -77,7 +63,7 @@ export default function MyAppointments() {
 
      <ul>
        {list.map((a) => (
-         <li key={a._id} style={{ marginBottom: "20px" }}>
+         <li key={a._id} style={{ marginBottom: 20 }}>
            <b>Status:</b> {a.status} <br />
            <b>DoctorId:</b> {a.doctorId} <br />
            <b>Date:</b> {new Date(a.datetime).toLocaleString()} <br />
@@ -94,11 +80,8 @@ export default function MyAppointments() {
 
            {a.status === "ACCEPTED" && a.paymentStatus !== "PAID" && (
              <div style={{ marginTop: 8 }}>
-               <button onClick={() => createPayment(a._id)}>
-                 Pay (Create Payment Record)
-               </button>
-               <button onClick={markPaid} style={{ marginLeft: 8 }}>
-                 Mark Paid (Demo)
+               <button onClick={() => startStripeCheckout(a._id)}>
+                 Pay with Stripe (Test)
                </button>
              </div>
            )}

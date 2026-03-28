@@ -30,7 +30,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: smart-secrets
-                  key: MONGO_URI
+                  key: MONGO_URI_AUTH
 ---
 apiVersion: v1
 kind: Service
