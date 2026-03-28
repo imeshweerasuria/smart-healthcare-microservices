@@ -18,6 +18,8 @@ import MyReports from "../pages/patient/MyReports";
 import MyPrescriptions from "../pages/patient/MyPrescriptions";
 import MyPayments from "../pages/patient/MyPayments";
 import PaymentSuccess from "../pages/patient/PaymentSuccess"; // ✅ added
+import PaymentForAppointment from "../pages/patient/PaymentForAppointment";
+import PaymentTest from "../pages/patient/PaymentTest";
 
 // Doctor pages
 import DoctorDashboard from "../pages/doctor/DoctorDashboard";
@@ -61,17 +63,11 @@ export default function AppRoutes() {
         <Route path="/patient/reports" element={<ProtectedRoute roles={["PATIENT"]}><MyReports /></ProtectedRoute>} />
         <Route path="/patient/prescriptions" element={<ProtectedRoute roles={["PATIENT"]}><MyPrescriptions /></ProtectedRoute>} />
         <Route path="/patient/payments" element={<ProtectedRoute roles={["PATIENT"]}><MyPayments /></ProtectedRoute>} />
+        <Route path="/patient/payments/create" element={<ProtectedRoute roles={["PATIENT"]}><PaymentForAppointment /></ProtectedRoute>}/>
+        <Route path="/patient/payment/success" element={<ProtectedRoute roles={["PATIENT"]}><PaymentSuccess /></ProtectedRoute>}/>
+        <Route path="/patient/payment-test" element={<ProtectedRoute roles={["PATIENT"]}><PaymentTest /></ProtectedRoute>}/>
 
-        {/* ✅ NEW ROUTE ADDED */}
-        <Route
-          path="/patient/payment/success"
-          element={
-            <ProtectedRoute roles={["PATIENT"]}>
-              <PaymentSuccess />
-            </ProtectedRoute>
-          }
-        />
-
+        
         {/* DOCTOR */}
         <Route path="/doctor" element={<ProtectedRoute roles={["DOCTOR"]}><DoctorDashboard /></ProtectedRoute>} />
         <Route path="/doctor/profile" element={<ProtectedRoute roles={["DOCTOR"]}><DoctorProfile /></ProtectedRoute>} />
