@@ -22,7 +22,7 @@ export default function MyPayments() {
      {list.length === 0 && <p>No payments yet.</p>}
 
      {list.map((p) => (
-       <div key={p._id} style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
+       <div key={p._id} style={{ border: "1px solid #ccc", padding: 12, marginBottom: 12 }}>
          <p><b>Payment ID:</b> {p._id}</p>
          <p><b>Appointment ID:</b> {p.appointmentId}</p>
          <p><b>Amount:</b> {p.amount} {p.currency}</p>
