@@ -30,7 +30,12 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: smart-secrets
-                  key: MONGO_URI
+                  key: MONGO_URI_DOCTOR
+            - name: PATIENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: PATIENT_URL
 ---
 apiVersion: v1
 kind: Service
