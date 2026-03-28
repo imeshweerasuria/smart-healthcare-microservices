@@ -1,37 +1,78 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API, authHeaders } from "../../api/client";
 
 export default function BookAppointment() {
  const { doctorId } = useParams();
  const navigate = useNavigate();
 
+ const [doctor, setDoctor] = useState(null);
  const [datetime, setDatetime] = useState("");
  const [reason, setReason] = useState("");
+ const [loading, setLoading] = useState(false);
+
+ useEffect(() => {
+   axios
+     .get(`${API.doctor}/doctors/${doctorId}`)
+     .then((res) => setDoctor(res.data))
+     .catch((err) => {
+       console.error(err);
+       alert("Failed to load doctor details");
+     });
+ }, [doctorId]);
 
  const book = async () => {
    try {
-     const token = localStorage.getItem("token");
-     if (!token) return alert("Login first");
+     if (!datetime) return alert("Choose date and time first");
+
+     const selected = new Date(datetime);
+     if (selected <= new Date()) {
+       return alert("Please choose a future date/time");
+     }
+
+     setLoading(true);
 
      await axios.post(
-       "http://localhost:4004/appointments",
-       { doctorId, datetime, reason },
-       { headers: { Authorization: `Bearer ${token}` } }
+       `${API.appointment}/appointments`,
+       { doctorId, datetime: selected.toISOString(), reason },
+       { headers: authHeaders() }
      );
 
      alert("Appointment requested!");
      navigate("/patient/appointments");
    } catch (e) {
-     console.log(e);
-     alert("Booking failed");
+     console.error(e);
+     alert(e.response?.data?.message || "Booking failed");
+   } finally {
+     setLoading(false);
    }
  };
 
  return (
-   <div>
+   <div style={{ padding: 24 }}>
      <h2>Book Appointment</h2>
-     <p>DoctorId: <code>{doctorId}</code></p>
+
+     {doctor && (
+       <div style={{ border: "1px solid #ccc", padding: 12, marginBottom: 16 }}>
+         <p><b>Specialty:</b> {doctor.specialty || "-"}</p>
+         <p><b>Bio:</b> {doctor.bio || "-"}</p>
+         <div>
+           <b>Availability:</b>
+           {doctor.availability?.length ? (
+             <ul>
+               {doctor.availability.map((slot, idx) => (
+                 <li key={idx}>
+                   {slot.day} | {slot.from} - {slot.to}
+                 </li>
+               ))}
+             </ul>
+           ) : (
+             <p>No availability listed.</p>
+           )}
+         </div>
+       </div>
+     )}
 
      <label>Date & Time:</label>
      <input
@@ -51,8 +92,8 @@ export default function BookAppointment() {
 
      <br /><br />
 
-     <button onClick={book} disabled={!datetime}>
-       Book
+     <button onClick={book} disabled={loading || !datetime}>
+       {loading ? "Booking..." : "Book"}
      </button>
    </div>
  );
