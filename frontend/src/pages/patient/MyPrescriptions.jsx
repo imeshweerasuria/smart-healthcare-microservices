@@ -22,8 +22,9 @@ export default function MyPrescriptions() {
      {list.length === 0 && <p>No prescriptions yet.</p>}
 
      {list.map((p) => (
-       <div key={p._id} style={{ border: "1px solid #ccc", padding: 10, marginBottom: 10 }}>
-         <p><b>DoctorId:</b> {p.doctorId}</p>
+       <div key={p._id} style={{ border: "1px solid #ccc", padding: 12, marginBottom: 12 }}>
+         <p><b>Doctor ID:</b> {p.doctorId}</p>
+         <p><b>Appointment ID:</b> {p.appointmentId || "-"}</p>
          <p><b>Date:</b> {new Date(p.createdAt).toLocaleString()}</p>
          <p><b>Meds:</b> {p.meds}</p>
          <p><b>Notes:</b> {p.notes}</p>
