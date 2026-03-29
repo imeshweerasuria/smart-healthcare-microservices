@@ -13,6 +13,14 @@ export default function BookAppointment() {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
   const [loadingDoctor, setLoadingDoctor] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
 
   const logout = () => {
     clearSession();
@@ -28,18 +36,22 @@ export default function BookAppointment() {
       })
       .catch((err) => {
         console.error(err);
-        alert("Failed to load doctor details");
+        showToast("Failed to load doctor details", "error");
         setLoadingDoctor(false);
       });
   }, [doctorId]);
 
   const book = async () => {
     try {
-      if (!datetime) return alert("Choose date and time first");
+      if (!datetime) {
+        showToast("Please select a date and time first", "error");
+        return;
+      }
 
       const selected = new Date(datetime);
       if (selected <= new Date()) {
-        return alert("Please choose a future date/time");
+        showToast("Please choose a future date and time", "error");
+        return;
       }
 
       setLoading(true);
@@ -50,11 +62,13 @@ export default function BookAppointment() {
         { headers: authHeaders() }
       );
 
-      alert("Appointment requested!");
-      navigate("/patient/appointments");
+      showToast("Appointment booked successfully!", "success");
+      setTimeout(() => {
+        navigate("/patient/appointments");
+      }, 1500);
     } catch (e) {
       console.error(e);
-      alert(e.response?.data?.message || "Booking failed");
+      showToast(e.response?.data?.message || "Booking failed. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -114,11 +128,9 @@ export default function BookAppointment() {
           </div>
         </div>
         <div style={styles.mainContent}>
-          <div style={styles.contentWrapper}>
-            <div style={styles.loadingContainer}>
-              <div style={styles.spinner}></div>
-              <p style={styles.loadingText}>Loading doctor details...</p>
-            </div>
+          <div style={styles.loadingContainer}>
+            <div style={styles.spinner}></div>
+            <p style={styles.loadingText}>Loading doctor details...</p>
           </div>
         </div>
       </div>
@@ -127,6 +139,22 @@ export default function BookAppointment() {
 
   return (
     <div style={styles.container}>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          ...styles.toast,
+          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
+          animation: "slideIn 0.3s ease-out"
+        }}>
+          <div style={styles.toastContent}>
+            <span style={styles.toastIcon}>
+              {toast.type === "success" ? "✓" : "✕"}
+            </span>
+            <span style={styles.toastMessage}>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
@@ -163,117 +191,152 @@ export default function BookAppointment() {
         </div>
       </div>
 
-      {/* Main Content - Centered */}
+      {/* Main Content - Full Width */}
       <div style={styles.mainContent}>
-        <div style={styles.contentWrapper}>
-          <div style={styles.header}>
-            <div>
-              <h1 style={styles.title}>Book Appointment</h1>
-              <p style={styles.subtitle}>Schedule a consultation with your doctor</p>
+        <div style={styles.header}>
+          <div>
+            <h1 style={styles.title}>Book Appointment</h1>
+            <p style={styles.subtitle}>Schedule a consultation with your doctor</p>
+          </div>
+          <Link to="/patient/doctors" style={styles.backBtn}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            Back to Doctors
+          </Link>
+        </div>
+
+        {/* Doctor Info Card */}
+        {doctor && (
+          <div style={styles.doctorCard}>
+            <div style={styles.doctorHeader}>
+              <div style={styles.doctorAvatar}>
+                {doctor.specialty?.charAt(0) || "D"}
+              </div>
+              <div style={styles.doctorInfo}>
+                <div style={styles.doctorSpecialty}>{doctor.specialty || "General Physician"}</div>
+                <div style={styles.doctorId}>Doctor ID: {doctor.userId?.slice(-6) || "N/A"}</div>
+              </div>
             </div>
-            <Link to="/patient/doctors" style={styles.backBtn}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-              Back to Doctors
-            </Link>
+            <div style={styles.doctorBio}>
+              <div style={styles.bioTitle}>About</div>
+              <p>{doctor.bio || "No bio available"}</p>
+            </div>
+            <div style={styles.availabilitySection}>
+              <div style={styles.availabilityTitle}>
+                <span>📅</span>
+                <span>Available Slots</span>
+              </div>
+              {doctor.availability?.length ? (
+                <div style={styles.slotsGrid}>
+                  {doctor.availability.map((slot, idx) => (
+                    <div key={idx} style={styles.slotCard}>
+                      <div style={styles.slotDay}>{slot.day}</div>
+                      <div style={styles.slotTime}>{slot.from} - {slot.to}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={styles.noAvailability}>No availability listed</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Booking Form */}
+        <div style={styles.formCard}>
+          <h3 style={styles.formTitle}>Appointment Details</h3>
+          
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              <span style={styles.labelIcon}>📅</span>
+              Date & Time
+            </label>
+            <input
+              type="datetime-local"
+              value={datetime}
+              onChange={(e) => setDatetime(e.target.value)}
+              min={getMinDateTime()}
+              style={styles.input}
+            />
+            <p style={styles.helperText}>Please select a future date and time</p>
           </div>
 
-          {/* Doctor Info Card */}
-          {doctor && (
-            <div style={styles.doctorCard}>
-              <div style={styles.doctorHeader}>
-                <div style={styles.doctorAvatar}>
-                  {doctor.specialty?.charAt(0) || "D"}
-                </div>
-                <div style={styles.doctorInfo}>
-                  <div style={styles.doctorSpecialty}>{doctor.specialty || "General Physician"}</div>
-                  <div style={styles.doctorId}>Doctor ID: {doctor.userId?.slice(-6) || "N/A"}</div>
-                </div>
-              </div>
-              <div style={styles.doctorBio}>
-                <div style={styles.bioTitle}>About</div>
-                <p>{doctor.bio || "No bio available"}</p>
-              </div>
-              <div style={styles.availabilitySection}>
-                <div style={styles.availabilityTitle}>
-                  <span>📅</span>
-                  <span>Available Slots</span>
-                </div>
-                {doctor.availability?.length ? (
-                  <div style={styles.slotsGrid}>
-                    {doctor.availability.map((slot, idx) => (
-                      <div key={idx} style={styles.slotCard}>
-                        <div style={styles.slotDay}>{slot.day}</div>
-                        <div style={styles.slotTime}>{slot.from} - {slot.to}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div style={styles.noAvailability}>No availability listed</div>
-                )}
-              </div>
-            </div>
-          )}
+          <div style={styles.formGroup}>
+            <label style={styles.label}>
+              <span style={styles.labelIcon}>📝</span>
+              Reason for Visit
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Describe your symptoms or reason for consultation..."
+              rows={4}
+              style={styles.textarea}
+            />
+          </div>
 
-          {/* Booking Form */}
-          <div style={styles.formCard}>
-            <h3 style={styles.formTitle}>Appointment Details</h3>
-            
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <span style={styles.labelIcon}>📅</span>
-                Date & Time
-              </label>
-              <input
-                type="datetime-local"
-                value={datetime}
-                onChange={(e) => setDatetime(e.target.value)}
-                min={getMinDateTime()}
-                style={styles.input}
-              />
-              <p style={styles.helperText}>Please select a future date and time</p>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={styles.label}>
-                <span style={styles.labelIcon}>📝</span>
-                Reason for Visit
-              </label>
-              <textarea
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder="Describe your symptoms or reason for consultation..."
-                rows={4}
-                style={styles.textarea}
-              />
-            </div>
-
-            <div style={styles.formActions}>
-              <button 
-                onClick={book} 
-                disabled={loading || !datetime}
-                style={loading || !datetime ? styles.bookBtnDisabled : styles.bookBtn}
-              >
-                {loading ? (
-                  <>
-                    <div style={styles.smallSpinner}></div>
-                    Booking...
-                  </>
-                ) : (
-                  <>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Confirm Booking
-                  </>
-                )}
-              </button>
-            </div>
+          <div style={styles.formActions}>
+            <button 
+              onClick={book} 
+              disabled={loading || !datetime}
+              style={loading || !datetime ? styles.bookBtnDisabled : styles.bookBtn}
+            >
+              {loading ? (
+                <>
+                  <div style={styles.smallSpinner}></div>
+                  Booking...
+                </>
+              ) : (
+                <>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                  </svg>
+                  Confirm Booking
+                </>
+              )}
+            </button>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        input:focus, textarea:focus {
+          border-color: #1e6f5c !important;
+          box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
+          outline: none;
+        }
+        
+        button:hover:not(:disabled), .back-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .doctor-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+        
+        a:hover {
+          background-color: #f8fafc;
+        }
+      `}</style>
     </div>
   );
 }
@@ -282,10 +345,46 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    width: "100%",
+    width: "100vw",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    margin: 0,
+    padding: 0,
+    overflowX: "hidden",
     position: "relative",
+  },
+  toast: {
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    zIndex: 1000,
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    color: "#ffffff",
+    minWidth: "280px",
+    maxWidth: "400px",
+  },
+  toastContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  toastIcon: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastMessage: {
+    fontSize: "14px",
+    fontWeight: "500",
+    flex: 1,
   },
   sidebar: {
     width: "280px",
@@ -299,6 +398,7 @@ const styles = {
     height: "100vh",
     overflowY: "auto",
     zIndex: 100,
+    flexShrink: 0,
   },
   sidebarHeader: {
     padding: "32px 24px",
@@ -397,16 +497,11 @@ const styles = {
   mainContent: {
     flex: 1,
     marginLeft: "280px",
-    padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
-  },
-  contentWrapper: {
-    maxWidth: "1000px",
-    width: "100%",
-    margin: "0 auto",
+    backgroundColor: "#f5f7fa",
+    padding: "32px 48px",
+    boxSizing: "border-box",
   },
   header: {
     display: "flex",
@@ -415,6 +510,7 @@ const styles = {
     marginBottom: "32px",
     flexWrap: "wrap",
     gap: "16px",
+    width: "100%",
   },
   title: {
     fontSize: "32px",
@@ -448,6 +544,9 @@ const styles = {
     overflow: "hidden",
     marginBottom: "24px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    width: "100%",
+    boxSizing: "border-box",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
   },
   doctorHeader: {
     padding: "24px",
@@ -536,6 +635,8 @@ const styles = {
     borderRadius: "24px",
     padding: "32px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    width: "100%",
+    boxSizing: "border-box",
   },
   formTitle: {
     fontSize: "18px",
@@ -625,6 +726,7 @@ const styles = {
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    minHeight: "100vh",
     padding: "80px 20px",
   },
   spinner: {
@@ -650,9 +752,21 @@ const styles = {
   },
 };
 
-// Add keyframes animation and hover effects
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+  
   @keyframes spin {
     to { transform: rotate(360deg); }
   }

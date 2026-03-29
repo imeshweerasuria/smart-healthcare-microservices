@@ -8,6 +8,14 @@ export default function MyAppointments() {
   const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
 
   const logout = () => {
     clearSession();
@@ -23,7 +31,7 @@ export default function MyAppointments() {
       setList(res.data);
     } catch (err) {
       console.error(err);
-      alert("Failed to load appointments");
+      showToast("Failed to load appointments", "error");
     } finally {
       setLoading(false);
     }
@@ -44,11 +52,11 @@ export default function MyAppointments() {
       if (res.data.checkoutUrl) {
         window.location.href = res.data.checkoutUrl;
       } else {
-        alert("No checkout URL returned");
+        showToast("No checkout URL returned", "error");
       }
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Stripe checkout failed");
+      showToast(err.response?.data?.message || "Stripe checkout failed", "error");
     }
   };
 
@@ -59,11 +67,11 @@ export default function MyAppointments() {
         {},
         { headers: authHeaders() }
       );
-      alert("Appointment cancelled");
+      showToast("Appointment cancelled successfully", "success");
       load();
     } catch (err) {
       console.error(err);
-      alert("Cancel failed");
+      showToast("Failed to cancel appointment", "error");
     }
   };
 
@@ -161,6 +169,22 @@ export default function MyAppointments() {
 
   return (
     <div style={styles.container}>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          ...styles.toast,
+          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
+          animation: "slideIn 0.3s ease-out"
+        }}>
+          <div style={styles.toastContent}>
+            <span style={styles.toastIcon}>
+              {toast.type === "success" ? "✓" : "✕"}
+            </span>
+            <span style={styles.toastMessage}>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
@@ -355,6 +379,44 @@ export default function MyAppointments() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes slideOut {
+          from {
+            transform: translateX(0);
+            opacity: 1;
+          }
+          to {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+        }
+        
+        button:hover:not(:disabled), a:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .appointment-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+      `}</style>
     </div>
   );
 }
@@ -369,6 +431,40 @@ const styles = {
     margin: 0,
     padding: 0,
     overflowX: "hidden",
+    position: "relative",
+  },
+  toast: {
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    zIndex: 1000,
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    color: "#ffffff",
+    minWidth: "280px",
+    maxWidth: "400px",
+  },
+  toastContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  toastIcon: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastMessage: {
+    fontSize: "14px",
+    fontWeight: "500",
+    flex: 1,
   },
   sidebar: {
     width: "280px",
@@ -762,7 +858,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation and hover effects
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   * {

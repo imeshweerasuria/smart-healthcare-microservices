@@ -8,6 +8,17 @@ export default function MyReports() {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [reportToDelete, setReportToDelete] = useState(null);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
 
   const logout = () => {
     clearSession();
@@ -23,7 +34,7 @@ export default function MyReports() {
       setReports(res.data);
     } catch (err) {
       console.error(err);
-      alert("Failed to load reports");
+      showToast("Failed to load reports", "error");
     } finally {
       setLoading(false);
     }
@@ -33,20 +44,33 @@ export default function MyReports() {
     loadReports();
   }, []);
 
-  const deleteReport = async (filename) => {
-    if (!window.confirm("Are you sure you want to delete this report? This action cannot be undone.")) {
-      return;
-    }
+  const confirmDelete = (filename) => {
+    setReportToDelete(filename);
+    setShowConfirmModal(true);
+  };
 
+  const cancelDelete = () => {
+    setReportToDelete(null);
+    setShowConfirmModal(false);
+  };
+
+  const executeDelete = async () => {
+    if (!reportToDelete) return;
+    
     try {
-      await axios.delete(`${API.patient}/patients/me/reports/${filename}`, {
+      setDeleting(reportToDelete);
+      setShowConfirmModal(false);
+      await axios.delete(`${API.patient}/patients/me/reports/${reportToDelete}`, {
         headers: authHeaders(),
       });
-      alert("Report deleted successfully");
+      showToast("Report deleted successfully", "success");
       await loadReports();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Delete failed");
+      showToast(err.response?.data?.message || "Failed to delete report", "error");
+    } finally {
+      setDeleting(null);
+      setReportToDelete(null);
     }
   };
 
@@ -144,6 +168,53 @@ export default function MyReports() {
 
   return (
     <div style={styles.container}>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          ...styles.toast,
+          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
+          animation: "slideIn 0.3s ease-out"
+        }}>
+          <div style={styles.toastContent}>
+            <span style={styles.toastIcon}>
+              {toast.type === "success" ? "✓" : "✕"}
+            </span>
+            <span style={styles.toastMessage}>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirmation Modal */}
+      {showConfirmModal && (
+        <div style={styles.modalOverlay} onClick={cancelDelete}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalIcon}>⚠️</div>
+              <h3 style={styles.modalTitle}>Delete Report</h3>
+            </div>
+            <div style={styles.modalContent}>
+              <p style={styles.modalMessage}>
+                Are you sure you want to delete this report?
+              </p>
+              <p style={styles.modalWarning}>
+                This action cannot be undone and the file will be permanently removed.
+              </p>
+            </div>
+            <div style={styles.modalActions}>
+              <button onClick={cancelDelete} style={styles.modalCancelBtn}>
+                Cancel
+              </button>
+              <button onClick={executeDelete} style={styles.modalConfirmBtn}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2"/>
+                </svg>
+                Delete Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
@@ -280,13 +351,23 @@ export default function MyReports() {
                     </a>
                   )}
                   <button
-                    onClick={() => deleteReport(r.filename)}
-                    style={styles.deleteBtn}
+                    onClick={() => confirmDelete(r.filename)}
+                    disabled={deleting === r.filename}
+                    style={deleting === r.filename ? styles.deleteBtnDisabled : styles.deleteBtn}
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2"/>
-                    </svg>
-                    Delete
+                    {deleting === r.filename ? (
+                      <>
+                        <div style={styles.smallSpinner}></div>
+                        Deleting...
+                      </>
+                    ) : (
+                      <>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M3 6H5H21M8 6V4C8 3.46957 8.21071 2.96086 8.58579 2.58579C8.96086 2.21071 9.46957 2 10 2H14C14.5304 2 15.0391 2.21071 15.4142 2.58579C15.7893 2.96086 16 3.46957 16 4V6M19 6V20C19 20.5304 18.7893 21.0391 18.4142 21.4142C18.0391 21.7893 17.5304 22 17 22H7C6.46957 22 5.96086 21.7893 5.58579 21.4142C5.21071 21.0391 5 20.5304 5 20V6H19Z" stroke="currentColor" strokeWidth="2"/>
+                        </svg>
+                        Delete
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
@@ -294,6 +375,53 @@ export default function MyReports() {
           </div>
         )}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        @keyframes scaleIn {
+          from {
+            transform: scale(0.95);
+            opacity: 0;
+          }
+          to {
+            transform: scale(1);
+            opacity: 1;
+          }
+        }
+        
+        button:hover:not(:disabled), a:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .report-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+      `}</style>
     </div>
   );
 }
@@ -308,6 +436,131 @@ const styles = {
     margin: 0,
     padding: 0,
     overflowX: "hidden",
+    position: "relative",
+  },
+  toast: {
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    zIndex: 1000,
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    color: "#ffffff",
+    minWidth: "280px",
+    maxWidth: "400px",
+  },
+  toastContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  toastIcon: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastMessage: {
+    fontSize: "14px",
+    fontWeight: "500",
+    flex: 1,
+  },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backdropFilter: "blur(4px)",
+    zIndex: 1000,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    animation: "fadeIn 0.2s ease-out",
+  },
+  modal: {
+    backgroundColor: "#ffffff",
+    borderRadius: "24px",
+    width: "90%",
+    maxWidth: "480px",
+    overflow: "hidden",
+    animation: "scaleIn 0.2s ease-out",
+    boxShadow: "0 20px 40px rgba(0, 0, 0, 0.2)",
+  },
+  modalHeader: {
+    padding: "24px 24px 16px 24px",
+    backgroundColor: "#fff5f5",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    borderBottom: "1px solid #ffe0e0",
+  },
+  modalIcon: {
+    fontSize: "28px",
+  },
+  modalTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#c62828",
+    margin: 0,
+  },
+  modalContent: {
+    padding: "24px",
+  },
+  modalMessage: {
+    fontSize: "15px",
+    color: "#1a2c3e",
+    marginBottom: "12px",
+    lineHeight: "1.5",
+  },
+  modalWarning: {
+    fontSize: "13px",
+    color: "#c62828",
+    backgroundColor: "#fff5f5",
+    padding: "12px",
+    borderRadius: "8px",
+    marginTop: "12px",
+    fontWeight: "500",
+  },
+  modalActions: {
+    padding: "16px 24px 24px 24px",
+    display: "flex",
+    gap: "12px",
+    justifyContent: "flex-end",
+  },
+  modalCancelBtn: {
+    padding: "10px 20px",
+    backgroundColor: "#f5f7fa",
+    color: "#5e7a93",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    fontFamily: "inherit",
+  },
+  modalConfirmBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    backgroundColor: "#c62828",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    fontFamily: "inherit",
   },
   sidebar: {
     width: "280px",
@@ -616,6 +869,23 @@ const styles = {
     transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
+  deleteBtnDisabled: {
+    flex: 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "10px",
+    backgroundColor: "#ffebee",
+    color: "#c62828",
+    border: "none",
+    borderRadius: "40px",
+    fontSize: "13px",
+    fontWeight: "500",
+    cursor: "not-allowed",
+    fontFamily: "inherit",
+    opacity: 0.6,
+  },
   loadingContainer: {
     display: "flex",
     flexDirection: "column",
@@ -629,6 +899,14 @@ const styles = {
     height: "40px",
     border: "3px solid #e2e8f0",
     borderTopColor: "#1e6f5c",
+    borderRadius: "50%",
+    animation: "spin 0.6s linear infinite",
+  },
+  smallSpinner: {
+    width: "14px",
+    height: "14px",
+    border: "2px solid rgba(198, 40, 40, 0.3)",
+    borderTopColor: "#c62828",
     borderRadius: "50%",
     animation: "spin 0.6s linear infinite",
   },
@@ -672,7 +950,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation and hover effects
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   * {
