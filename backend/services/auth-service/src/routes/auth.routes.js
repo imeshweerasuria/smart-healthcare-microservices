@@ -12,6 +12,7 @@ const signToken = (user) =>
      userId: user._id.toString(),
      role: user.role,
      email: user.email,
+     phone: user.phone || "",
    },
    process.env.JWT_SECRET || "supersecret",
    { expiresIn: "7d" }
@@ -20,7 +21,7 @@ const signToken = (user) =>
 // REGISTER
 router.post("/register", async (req, res) => {
  try {
-   const { name, email, password, role } = req.body;
+   const { name, email, phone, password, role } = req.body;
 
    if (!name || !email || !password || !role) {
      return res.status(400).json({ message: "Missing fields" });
@@ -40,6 +41,7 @@ router.post("/register", async (req, res) => {
    const user = await User.create({
      name,
      email: email.toLowerCase(),
+     phone: phone || "",
      passwordHash,
      role,
      doctorVerified: role === "DOCTOR" ? false : true,
@@ -53,6 +55,7 @@ router.post("/register", async (req, res) => {
      role: user.role,
      userId: user._id,
      email: user.email,
+     phone: user.phone || "",
      name: user.name,
      doctorVerified: user.doctorVerified,
      isDisabled: user.isDisabled,
@@ -97,6 +100,7 @@ router.post("/login", async (req, res) => {
      role: user.role,
      userId: user._id,
      email: user.email,
+     phone: user.phone || "",
      name: user.name,
      doctorVerified: user.doctorVerified,
      isDisabled: user.isDisabled,
@@ -163,6 +167,7 @@ router.patch("/doctors/:id/verify", requireAuth, requireRole("ADMIN"), async (re
        _id: doctor._id,
        name: doctor.name,
        email: doctor.email,
+       phone: doctor.phone || "",
        role: doctor.role,
        doctorVerified: doctor.doctorVerified,
        isDisabled: doctor.isDisabled,
@@ -189,6 +194,7 @@ router.patch("/users/:id/toggle-disable", requireAuth, requireRole("ADMIN"), asy
        _id: user._id,
        name: user.name,
        email: user.email,
+       phone: user.phone || "",
        role: user.role,
        doctorVerified: user.doctorVerified,
        isDisabled: user.isDisabled,

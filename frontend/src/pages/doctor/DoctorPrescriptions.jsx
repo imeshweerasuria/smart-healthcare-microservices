@@ -93,7 +93,7 @@ export default function DoctorPrescriptions() {
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor/dashboard" style={styles.navItem}>
+          <Link to="/doctor" style={styles.navItem}>
             <span style={styles.navIcon}>🏠</span>
             <span>Dashboard</span>
           </Link>

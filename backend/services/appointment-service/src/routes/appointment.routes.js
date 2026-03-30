@@ -44,6 +44,7 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
     const appt = await Appointment.create({
       patientId: req.user.userId,
       patientEmail: req.user.email || "",
+      patientPhone: req.user.phone || "",
       doctorId,
       slotNumber,
       reason: reason || "",
@@ -59,6 +60,17 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
         });
       } catch (notifyErr) {
         console.error("Booking email failed:", notifyErr.message);
+      }
+    }
+
+    if (appt.patientPhone) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+          to: appt.patientPhone,
+          body: `Smart Healthcare: Appointment request created. ID: ${appt._id}`,
+        });
+      } catch (notifyErr) {
+        console.error("Booking SMS failed:", notifyErr.message);
       }
     }
 
@@ -144,6 +156,17 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
           text: `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointmentId: ${appt._id}`,
         });
       }
+
+      if (appt.patientPhone) {
+        try {
+          await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+            to: appt.patientPhone,
+            body: `Smart Healthcare: Appointment accepted. Check email for details.`,
+          });
+        } catch (notifyErr) {
+          console.error("Accepted SMS failed:", notifyErr.message);
+        }
+      }
     }
 
     await appt.save();
@@ -206,6 +229,17 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
       }
     }
 
+    if (appt.patientPhone) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+          to: appt.patientPhone,
+          body: `Smart Healthcare: Appointment cancelled. ID: ${appt._id}`,
+        });
+      } catch (notifyErr) {
+        console.error("Cancel SMS failed:", notifyErr.message);
+      }
+    }
+
     res.json({ message: "Appointment cancelled", appointment: appt });
   } catch (e) {
     res.status(500).json({ message: "Server error" });
@@ -260,6 +294,17 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
       }
     }
 
+    if (appt.patientPhone) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+          to: appt.patientPhone,
+          body: `Smart Healthcare: Appointment rescheduled. ID: ${appt._id}`,
+        });
+      } catch (notifyErr) {
+        console.error("Reschedule SMS failed:", notifyErr.message);
+      }
+    }
+
     res.json({ message: "Appointment rescheduled", appointment: appt });
   } catch (e) {
     res.status(500).json({ message: "Server error" });
@@ -287,6 +332,17 @@ router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async
         });
       } catch (notifyErr) {
         console.error("Completion email failed:", notifyErr.message);
+      }
+    }
+
+    if (appt.patientPhone) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+          to: appt.patientPhone,
+          body: `Smart Healthcare: Consultation completed. ID: ${appt._id}`,
+        });
+      } catch (notifyErr) {
+        console.error("Completion SMS failed:", notifyErr.message);
       }
     }
 
@@ -318,7 +374,8 @@ router.get("/doctor/:doctorId/slots", requireAuth, async (req, res) => {
   }
 });
 
-router.patch("/:id/reason", async (req, res) => {  try {
+router.patch("/:id/reason", async (req, res) => {
+  try {
     const { reason } = req.body;
 
     const appointment = await Appointment.findByIdAndUpdate(
