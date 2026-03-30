@@ -9,6 +9,7 @@ export default function BrowseDoctors() {
   const [doctors, setDoctors] = useState([]);
   const [specialty, setSpecialty] = useState("");
   const [loading, setLoading] = useState(false);
+  const [hoveredCard, setHoveredCard] = useState(null);
 
   const logout = () => {
     clearSession();
@@ -38,26 +39,18 @@ export default function BrowseDoctors() {
 
   const navItems = [
     { path: "/patient/profile", label: "My Profile", icon: "👤" },
-    { path: "/patient/medical-record", label: "My Medical Record", icon: "📋" },
+    { path: "/patient/medical-record", label: "Medical Record", icon: "📋" },
     { path: "/patient/doctors", label: "Browse Doctors", icon: "👨‍⚕️", active: true },
-    { path: "/patient/appointments", label: "My Appointments", icon: "📅" },
-    { path: "/patient/upload", label: "Upload Medical Reports", icon: "📤" },
+    { path: "/patient/appointments", label: "Appointments", icon: "📅" },
+    { path: "/patient/upload", label: "Upload Reports", icon: "📤" },
     { path: "/patient/reports", label: "My Reports", icon: "📊" },
-    { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊" },
-    { path: "/patient/payments", label: "My Payments", icon: "💰" },
+    { path: "/patient/prescriptions", label: "Prescriptions", icon: "💊" },
+    { path: "/patient/payments", label: "Payments", icon: "💰" },
   ];
 
   const specialties = [
-    "Cardiologist",
-    "Dermatologist",
-    "Neurologist",
-    "Pediatrician",
-    "Psychiatrist",
-    "Orthopedic",
-    "Ophthalmologist",
-    "Gynecologist",
-    "General Physician",
-    "Dentist",
+    "Cardiologist", "Dermatologist", "Neurologist", "Pediatrician", "Psychiatrist",
+    "Orthopedic", "Ophthalmologist", "Gynecologist", "General Physician", "Dentist"
   ];
 
   return (
@@ -86,25 +79,35 @@ export default function BrowseDoctors() {
         
         <div style={styles.sidebarNav}>
           {navItems.map((item) => (
-            <Link key={item.path} to={item.path} style={item.active ? styles.navItemActive : styles.navItem}>
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              style={item.active ? styles.navItemActive : styles.navItem}
+              className="nav-item"
+            >
               <span style={styles.navIcon}>{item.icon}</span>
               <span>{item.label}</span>
             </Link>
           ))}
-          <button onClick={logout} style={styles.logoutBtn}>
+          <button onClick={logout} style={styles.logoutBtn} className="logout-button">
             <span style={styles.navIcon}>🚪</span>
             <span>Logout</span>
           </button>
         </div>
       </div>
 
-      {/* Main Content - Centered */}
+      {/* Main Content */}
       <div style={styles.mainContent}>
         <div style={styles.contentWrapper}>
           <div style={styles.header}>
             <div>
-              <h1 style={styles.title}>Browse Doctors</h1>
-              <p style={styles.subtitle}>Find and book appointments with specialist doctors</p>
+              <h1 style={styles.title}>
+                Browse <span style={styles.gradientText}>Doctors</span>
+              </h1>
+              <p style={styles.subtitle}>Connect with top specialists & schedule appointments seamlessly</p>
+            </div>
+            <div style={styles.statsBadge}>
+              <span>{doctors.length} Available</span>
             </div>
           </div>
 
@@ -124,10 +127,11 @@ export default function BrowseDoctors() {
                   placeholder="Search by specialty (e.g., Cardiologist)"
                   style={styles.searchInput}
                   onKeyPress={(e) => e.key === 'Enter' && load(specialty)}
+                  className="search-input"
                 />
               </div>
               <div style={styles.searchButtons}>
-                <button onClick={() => load(specialty)} style={styles.searchBtn}>
+                <button onClick={() => load(specialty)} style={styles.searchBtn} className="primary-btn">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2"/>
                   </svg>
@@ -136,6 +140,7 @@ export default function BrowseDoctors() {
                 <button 
                   onClick={() => { setSpecialty(""); load(""); }} 
                   style={styles.clearBtn}
+                  className="secondary-btn"
                 >
                   Clear
                 </button>
@@ -149,6 +154,7 @@ export default function BrowseDoctors() {
                   key={spec}
                   onClick={() => { setSpecialty(spec); load(spec); }}
                   style={specialty === spec ? styles.chipActive : styles.chip}
+                  className="chip"
                 >
                   {spec}
                 </button>
@@ -160,7 +166,7 @@ export default function BrowseDoctors() {
           {loading ? (
             <div style={styles.loadingContainer}>
               <div style={styles.spinner}></div>
-              <p style={styles.loadingText}>Loading doctors...</p>
+              <p style={styles.loadingText}>Loading expert doctors...</p>
             </div>
           ) : doctors.length === 0 ? (
             <div style={styles.emptyState}>
@@ -171,7 +177,16 @@ export default function BrowseDoctors() {
           ) : (
             <div style={styles.doctorsGrid}>
               {doctors.map((d) => (
-                <div key={d._id} style={styles.doctorCard}>
+                <div 
+                  key={d._id} 
+                  style={{
+                    ...styles.doctorCard,
+                    ...(hoveredCard === d._id ? styles.doctorCardHover : {})
+                  }}
+                  onMouseEnter={() => setHoveredCard(d._id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  className="doctor-card"
+                >
                   <div style={styles.doctorHeader}>
                     <div style={styles.doctorAvatar}>
                       {d.specialty?.charAt(0) || "D"}
@@ -183,7 +198,7 @@ export default function BrowseDoctors() {
                   </div>
 
                   <div style={styles.doctorBio}>
-                    <p>{d.bio || "No bio available"}</p>
+                    <p>{d.bio || "Experienced healthcare professional dedicated to your well-being."}</p>
                   </div>
 
                   <div style={styles.availabilitySection}>
@@ -208,7 +223,7 @@ export default function BrowseDoctors() {
                     )}
                   </div>
 
-                  <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn}>
+                  <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                       <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -221,6 +236,87 @@ export default function BrowseDoctors() {
           )}
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes fadeSlideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .doctor-card {
+          animation: fadeSlideUp 0.5s ease-out;
+          transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+        
+        .chip {
+          transition: all 0.2s ease;
+          cursor: pointer;
+        }
+        
+        .chip:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(30, 111, 92, 0.15);
+        }
+        
+        .primary-btn, .secondary-btn, .book-btn {
+          transition: all 0.2s ease;
+          cursor: pointer;
+        }
+        
+        .primary-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(30, 111, 92, 0.3);
+        }
+        
+        .secondary-btn:hover {
+          transform: translateY(-2px);
+          background-color: #f0f2f5;
+        }
+        
+        .book-btn:hover {
+          transform: translateY(-2px);
+          background-color: #d9f0eb;
+          box-shadow: 0 4px 12px rgba(30, 111, 92, 0.2);
+        }
+        
+        .nav-item {
+          transition: all 0.2s ease;
+        }
+        
+        .nav-item:hover {
+          background-color: #f8fafc;
+          transform: translateX(4px);
+        }
+        
+        .logout-button {
+          transition: all 0.2s ease;
+        }
+        
+        .logout-button:hover {
+          background-color: #fee;
+          transform: translateX(4px);
+        }
+        
+        .search-input {
+          transition: all 0.2s ease;
+        }
+        
+        .search-input:focus {
+          border-color: #1e6f5c;
+          box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08);
+          outline: none;
+        }
+      `}</style>
     </div>
   );
 }
@@ -230,14 +326,14 @@ const styles = {
     display: "flex",
     minHeight: "100vh",
     width: "100%",
-    background: "#f5f7fa",
+    background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    position: "relative",
   },
   sidebar: {
     width: "280px",
-    backgroundColor: "#ffffff",
-    borderRight: "1px solid #eef2f6",
+    backgroundColor: "rgba(255, 255, 255, 0.98)",
+    backdropFilter: "blur(10px)",
+    borderRight: "1px solid rgba(0, 0, 0, 0.05)",
     display: "flex",
     flexDirection: "column",
     position: "fixed",
@@ -260,12 +356,13 @@ const styles = {
   logoIcon: {
     width: "36px",
     height: "36px",
-    backgroundColor: "#1e6f5c",
+    background: "linear-gradient(135deg, #1e6f5c 0%, #289b82 100%)",
     borderRadius: "10px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     color: "#ffffff",
+    boxShadow: "0 4px 10px rgba(30, 111, 92, 0.2)",
   },
   logoText: {
     fontSize: "20px",
@@ -284,12 +381,12 @@ const styles = {
   adminAvatar: {
     width: "48px",
     height: "48px",
-    backgroundColor: "#1e6f5c",
+    background: "linear-gradient(135deg, #e8f5e9 0%, #d4ede8 100%)",
     borderRadius: "24px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    color: "#ffffff",
+    color: "#1e6f5c",
     fontSize: "20px",
     fontWeight: "600",
   },
@@ -318,7 +415,6 @@ const styles = {
     borderRadius: "12px",
     color: "#5e7a93",
     textDecoration: "none",
-    transition: "all 0.2s ease",
     fontSize: "14px",
     fontWeight: "500",
   },
@@ -328,7 +424,7 @@ const styles = {
     gap: "12px",
     padding: "12px 16px",
     borderRadius: "12px",
-    backgroundColor: "#e8f5e9",
+    background: "linear-gradient(135deg, #e8f5e9 0%, #e0f2ef 100%)",
     color: "#1e6f5c",
     textDecoration: "none",
     fontSize: "14px",
@@ -351,16 +447,13 @@ const styles = {
     fontWeight: "500",
     fontFamily: "inherit",
     marginTop: "auto",
-    transition: "all 0.2s ease",
   },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
-    padding: "32px",
+    padding: "40px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    display: "flex",
-    justifyContent: "center",
   },
   contentWrapper: {
     maxWidth: "1400px",
@@ -370,29 +463,43 @@ const styles = {
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     marginBottom: "32px",
     flexWrap: "wrap",
     gap: "16px",
   },
   title: {
-    fontSize: "32px",
-    fontWeight: "600",
+    fontSize: "36px",
+    fontWeight: "700",
     color: "#1a2c3e",
     margin: "0 0 8px 0",
     letterSpacing: "-0.5px",
+  },
+  gradientText: {
+    background: "linear-gradient(135deg, #1e6f5c 0%, #2c9b82 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
   },
   subtitle: {
     fontSize: "15px",
     color: "#5e7a93",
     margin: 0,
   },
+  statsBadge: {
+    backgroundColor: "rgba(30, 111, 92, 0.1)",
+    padding: "8px 16px",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#1e6f5c",
+  },
   searchCard: {
     backgroundColor: "#ffffff",
-    borderRadius: "20px",
-    padding: "24px",
+    borderRadius: "24px",
+    padding: "28px",
     marginBottom: "32px",
-    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.04)",
   },
   searchHeader: {
     display: "flex",
@@ -427,7 +534,6 @@ const styles = {
     borderRadius: "12px",
     fontFamily: "inherit",
     outline: "none",
-    transition: "all 0.2s ease",
     boxSizing: "border-box",
   },
   searchButtons: {
@@ -439,14 +545,13 @@ const styles = {
     alignItems: "center",
     gap: "8px",
     padding: "12px 24px",
-    backgroundColor: "#1e6f5c",
+    background: "linear-gradient(135deg, #1e6f5c 0%, #238b72 100%)",
     color: "#ffffff",
     border: "none",
     borderRadius: "12px",
     fontSize: "14px",
     fontWeight: "500",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
   clearBtn: {
@@ -458,7 +563,6 @@ const styles = {
     fontSize: "14px",
     fontWeight: "500",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
   specialtyChips: {
@@ -468,25 +572,23 @@ const styles = {
     marginTop: "8px",
   },
   chip: {
-    padding: "6px 14px",
+    padding: "6px 16px",
     backgroundColor: "#f5f7fa",
     border: "1px solid #e2e8f0",
     borderRadius: "20px",
     fontSize: "13px",
     color: "#5e7a93",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
   chipActive: {
-    padding: "6px 14px",
-    backgroundColor: "#1e6f5c",
-    border: "1px solid #1e6f5c",
+    padding: "6px 16px",
+    background: "linear-gradient(135deg, #1e6f5c 0%, #238b72 100%)",
+    border: "none",
     borderRadius: "20px",
     fontSize: "13px",
     color: "#ffffff",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
   doctorsGrid: {
@@ -499,7 +601,10 @@ const styles = {
     borderRadius: "24px",
     overflow: "hidden",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.04)",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  doctorCardHover: {
+    transform: "translateY(-4px)",
+    boxShadow: "0 20px 30px -12px rgba(0, 0, 0, 0.12)",
   },
   doctorHeader: {
     padding: "20px 24px",
@@ -512,7 +617,7 @@ const styles = {
   doctorAvatar: {
     width: "56px",
     height: "56px",
-    backgroundColor: "#e8f5e9",
+    background: "linear-gradient(135deg, #e8f5e9 0%, #d4ede8 100%)",
     borderRadius: "28px",
     display: "flex",
     alignItems: "center",
@@ -598,7 +703,6 @@ const styles = {
     fontSize: "14px",
     fontWeight: "600",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     fontFamily: "inherit",
     display: "flex",
     alignItems: "center",
@@ -647,35 +751,3 @@ const styles = {
     color: "#5e7a93",
   },
 };
-
-// Add keyframes animation and hover effects
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  input:focus {
-    border-color: #1e6f5c !important;
-    box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
-    outline: none;
-  }
-  
-  button:hover:not(:disabled), .book-btn:hover, .chip:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  .doctor-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-  }
-  
-  a:hover {
-    background-color: #f8fafc;
-  }
-`;
-
-if (typeof document !== "undefined") {
-  document.head.appendChild(styleSheet);
-}

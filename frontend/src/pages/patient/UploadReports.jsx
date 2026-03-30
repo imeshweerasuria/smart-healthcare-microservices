@@ -9,6 +9,14 @@ export default function UploadReports() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
 
   const logout = () => {
     clearSession();
@@ -17,17 +25,22 @@ export default function UploadReports() {
 
   const upload = async () => {
     try {
-      if (!file) return alert("Choose a file first");
+      if (!file) {
+        showToast("Please select a file first", "error");
+        return;
+      }
 
       // Validate file type
       const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
       if (!allowedTypes.includes(file.type)) {
-        return alert("Only PDF, JPG, and PNG files are allowed");
+        showToast("Only PDF, JPG, and PNG files are allowed", "error");
+        return;
       }
 
       // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
-        return alert("File size must be less than 5MB");
+        showToast("File size must be less than 5MB", "error");
+        return;
       }
 
       setLoading(true);
@@ -42,14 +55,14 @@ export default function UploadReports() {
         },
       });
 
-      alert("Uploaded successfully");
+      showToast("Report uploaded successfully!", "success");
       setFile(null);
       // Reset file input
       const fileInput = document.getElementById('file-upload');
       if (fileInput) fileInput.value = '';
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.message || "Upload failed");
+      showToast(err.response?.data?.message || "Upload failed. Please try again.", "error");
     } finally {
       setLoading(false);
     }
@@ -71,7 +84,18 @@ export default function UploadReports() {
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setFile(e.dataTransfer.files[0]);
+      const droppedFile = e.dataTransfer.files[0];
+      // Validate file type for drag and drop
+      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+      if (!allowedTypes.includes(droppedFile.type)) {
+        showToast("Only PDF, JPG, and PNG files are allowed", "error");
+        return;
+      }
+      if (droppedFile.size > 5 * 1024 * 1024) {
+        showToast("File size must be less than 5MB", "error");
+        return;
+      }
+      setFile(droppedFile);
     }
   };
 
@@ -104,6 +128,22 @@ export default function UploadReports() {
 
   return (
     <div style={styles.container}>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          ...styles.toast,
+          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
+          animation: "slideIn 0.3s ease-out"
+        }}>
+          <div style={styles.toastContent}>
+            <span style={styles.toastIcon}>
+              {toast.type === "success" ? "✓" : "✕"}
+            </span>
+            <span style={styles.toastMessage}>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
@@ -201,7 +241,24 @@ export default function UploadReports() {
               id="file-upload"
               type="file"
               accept=".pdf,.jpg,.jpeg,.png"
-              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => {
+                const selectedFile = e.target.files?.[0];
+                if (selectedFile) {
+                  // Validate file type for file selection
+                  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+                  if (!allowedTypes.includes(selectedFile.type)) {
+                    showToast("Only PDF, JPG, and PNG files are allowed", "error");
+                    e.target.value = '';
+                    return;
+                  }
+                  if (selectedFile.size > 5 * 1024 * 1024) {
+                    showToast("File size must be less than 5MB", "error");
+                    e.target.value = '';
+                    return;
+                  }
+                  setFile(selectedFile);
+                }
+              }}
               style={styles.fileInput}
             />
             <div style={styles.dropzoneContent}>
@@ -232,6 +289,7 @@ export default function UploadReports() {
                   if (fileInput) fileInput.value = '';
                 }}
                 style={styles.removeFileBtn}
+                className="remove-file-btn"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
@@ -278,6 +336,38 @@ export default function UploadReports() {
           </ul>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        button:hover:not(:disabled), .view-reports-btn:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        .dropzone:hover {
+          border-color: #1e6f5c;
+          background-color: #e8f5e9;
+        }
+        
+        .remove-file-btn:hover {
+          background-color: #ffebee;
+          transform: scale(1.05);
+        }
+      `}</style>
     </div>
   );
 }
@@ -292,6 +382,40 @@ const styles = {
     margin: 0,
     padding: 0,
     overflowX: "hidden",
+    position: "relative",
+  },
+  toast: {
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    zIndex: 1000,
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    color: "#ffffff",
+    minWidth: "280px",
+    maxWidth: "400px",
+  },
+  toastContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  toastIcon: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastMessage: {
+    fontSize: "14px",
+    fontWeight: "500",
+    flex: 1,
   },
   sidebar: {
     width: "280px",
@@ -648,7 +772,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation and hover effects
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   * {
@@ -679,6 +803,7 @@ styleSheet.textContent = `
   
   .remove-file-btn:hover {
     background-color: #ffebee;
+    transform: scale(1.05);
   }
 `;
 

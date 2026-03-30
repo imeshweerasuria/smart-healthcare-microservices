@@ -16,6 +16,15 @@ export default function PatientProfile() {
     chronicConditions: "",
   });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast({ show: false, message: "", type: "success" });
+    }, 3000);
+  };
 
   const logout = () => {
     clearSession();
@@ -42,7 +51,7 @@ export default function PatientProfile() {
       });
     } catch (err) {
       console.error(err);
-      alert("Failed to load profile");
+      showToast("Failed to load profile", "error");
     } finally {
       setLoading(false);
     }
@@ -61,8 +70,9 @@ export default function PatientProfile() {
 
   const save = async (e) => {
     e.preventDefault();
-
+    
     try {
+      setSaving(true);
       await axios.put(
         `${API.patient}/patients/me`,
         {
@@ -79,10 +89,12 @@ export default function PatientProfile() {
         { headers: authHeaders() }
       );
 
-      alert("Profile updated");
+      showToast("Profile updated successfully!", "success");
     } catch (err) {
       console.error(err);
-      alert("Update failed");
+      showToast(err.response?.data?.message || "Failed to update profile", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -145,6 +157,22 @@ export default function PatientProfile() {
 
   return (
     <div style={styles.container}>
+      {/* Toast Notification */}
+      {toast.show && (
+        <div style={{
+          ...styles.toast,
+          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
+          animation: "slideIn 0.3s ease-out"
+        }}>
+          <div style={styles.toastContent}>
+            <span style={styles.toastIcon}>
+              {toast.type === "success" ? "✓" : "✕"}
+            </span>
+            <span style={styles.toastMessage}>{toast.message}</span>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
@@ -284,16 +312,61 @@ export default function PatientProfile() {
             </div>
 
             <div style={styles.formActions}>
-              <button type="submit" style={styles.submitBtn}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-                Save Profile
+              <button 
+                type="submit" 
+                disabled={saving}
+                style={saving ? styles.submitBtnDisabled : styles.submitBtn}
+              >
+                {saving ? (
+                  <>
+                    <div style={styles.smallSpinner}></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                    </svg>
+                    Save Profile
+                  </>
+                )}
               </button>
             </div>
           </form>
         </div>
       </div>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        @keyframes slideIn {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        
+        input:focus, select:focus, textarea:focus {
+          border-color: #1e6f5c !important;
+          box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
+          outline: none;
+        }
+        
+        button:hover:not(:disabled) {
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        a:hover {
+          background-color: #f8fafc;
+        }
+      `}</style>
     </div>
   );
 }
@@ -308,6 +381,40 @@ const styles = {
     margin: 0,
     padding: 0,
     overflowX: "hidden",
+    position: "relative",
+  },
+  toast: {
+    position: "fixed",
+    top: "24px",
+    right: "24px",
+    zIndex: 1000,
+    padding: "14px 20px",
+    borderRadius: "12px",
+    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
+    color: "#ffffff",
+    minWidth: "280px",
+    maxWidth: "400px",
+  },
+  toastContent: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  toastIcon: {
+    fontSize: "18px",
+    fontWeight: "bold",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  toastMessage: {
+    fontSize: "14px",
+    fontWeight: "500",
+    flex: 1,
   },
   sidebar: {
     width: "280px",
@@ -548,6 +655,20 @@ const styles = {
     transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
+  submitBtnDisabled: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "12px 28px",
+    backgroundColor: "#e2e8f0",
+    color: "#9aaebf",
+    border: "none",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "not-allowed",
+    fontFamily: "inherit",
+  },
   loadingContainer: {
     display: "flex",
     flexDirection: "column",
@@ -564,6 +685,14 @@ const styles = {
     borderRadius: "50%",
     animation: "spin 0.6s linear infinite",
   },
+  smallSpinner: {
+    width: "16px",
+    height: "16px",
+    border: "2px solid rgba(255, 255, 255, 0.3)",
+    borderTopColor: "#ffffff",
+    borderRadius: "50%",
+    animation: "spin 0.6s linear infinite",
+  },
   loadingText: {
     marginTop: "16px",
     color: "#5e7a93",
@@ -571,7 +700,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation and hover effects
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   * {
