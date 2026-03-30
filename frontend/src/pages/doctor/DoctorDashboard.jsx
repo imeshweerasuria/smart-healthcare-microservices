@@ -77,28 +77,28 @@ export default function DoctorDashboard() {
         {/* Quick Stats Cards */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd"}}>📅</div>
+            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd", color: "#1976d2"}}>📅</div>
             <div>
               <div style={styles.statValue}>0</div>
               <div style={styles.statLabel}>Today's Appointments</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9"}}>⏰</div>
+            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9", color: "#2e7d32"}}>⏰</div>
             <div>
               <div style={styles.statValue}>0</div>
               <div style={styles.statLabel}>Upcoming Appointments</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#fff3e0"}}>👥</div>
+            <div style={{...styles.statIcon, backgroundColor: "#fff3e0", color: "#ed6c02"}}>👥</div>
             <div>
               <div style={styles.statValue}>0</div>
               <div style={styles.statLabel}>Total Patients</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#f3e5f5"}}>💊</div>
+            <div style={{...styles.statIcon, backgroundColor: "#f3e5f5", color: "#9c27b0"}}>💊</div>
             <div>
               <div style={styles.statValue}>0</div>
               <div style={styles.statLabel}>Active Prescriptions</div>
@@ -133,39 +133,43 @@ export default function DoctorDashboard() {
           </div>
         </div>
 
-        {/* Navigation Links Section */}
-        <div style={styles.navigationSection}>
-          <h3 style={styles.sectionTitle}>Quick Navigation</h3>
-          <div style={styles.navGrid}>
-            <Link to="/doctor/profile" style={styles.navCard}>
-              <div style={styles.navCardIcon}>👤</div>
-              <div style={styles.navCardTitle}>My Profile</div>
-              <div style={styles.navCardDesc}>View and edit your profile</div>
-            </Link>
-            <Link to="/doctor/availability" style={styles.navCard}>
-              <div style={styles.navCardIcon}>⏰</div>
-              <div style={styles.navCardTitle}>Availability</div>
-              <div style={styles.navCardDesc}>Manage your schedule</div>
-            </Link>
-            <Link to="/doctor/appointments" style={styles.navCard}>
-              <div style={styles.navCardIcon}>📅</div>
-              <div style={styles.navCardTitle}>Appointments</div>
-              <div style={styles.navCardDesc}>View and manage requests</div>
-            </Link>
-            <Link to="/doctor/patient-reports" style={styles.navCard}>
-              <div style={styles.navCardIcon}>📄</div>
-              <div style={styles.navCardTitle}>Patient Reports</div>
-              <div style={styles.navCardDesc}>Access medical records</div>
-            </Link>
-            <Link to="/doctor/prescriptions" style={styles.navCard}>
-              <div style={styles.navCardIcon}>💊</div>
-              <div style={styles.navCardTitle}>Prescriptions</div>
-              <div style={styles.navCardDesc}>View issued prescriptions</div>
-            </Link>
+        {/* Recent Activity & Upcoming Section - Realistic Touch */}
+        <div style={styles.recentSection}>
+          <div style={styles.recentCard}>
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>Recent Activity</span>
+              <span style={styles.cardBadge}>Last 7 days</span>
+            </div>
+            <div style={styles.activityList}>
+              <div style={styles.activityItem}>
+                <div style={styles.activityIcon}>📝</div>
+                <div style={styles.activityContent}>
+                  <div style={styles.activityText}>No recent appointments</div>
+                  <div style={styles.activityTime}>—</div>
+                </div>
+              </div>
+              <div style={styles.activityItem}>
+                <div style={styles.activityIcon}>💊</div>
+                <div style={styles.activityContent}>
+                  <div style={styles.activityText}>No recent prescriptions</div>
+                  <div style={styles.activityTime}>—</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style={styles.upcomingCard}>
+            <div style={styles.cardHeader}>
+              <span style={styles.cardTitle}>Upcoming Schedule</span>
+              <span style={styles.cardBadge}>Next 3 days</span>
+            </div>
+            <div style={styles.schedulePlaceholder}>
+              <div style={styles.emptyStateIcon}>📅</div>
+              <p style={styles.emptyStateText}>No upcoming appointments</p>
+            </div>
           </div>
         </div>
 
-        {/* Welcome Message */}
+        {/* Welcome Message with Enhanced Design */}
         <div style={styles.welcomeCard}>
           <div style={styles.welcomeIcon}>👨‍⚕️</div>
           <div style={styles.welcomeContent}>
@@ -352,6 +356,11 @@ const styles = {
     alignItems: "center",
     gap: "16px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    transition: "all 0.2s ease",
+    "&:hover": {
+      transform: "translateY(-2px)",
+      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
+    },
   },
   statIcon: {
     width: "48px",
@@ -395,6 +404,10 @@ const styles = {
     transition: "all 0.2s ease",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
     textAlign: "center",
+    "&:hover": {
+      transform: "translateY(-4px)",
+      boxShadow: "0 12px 28px rgba(0, 0, 0, 0.12)",
+    },
   },
   actionIcon: {
     fontSize: "40px",
@@ -410,39 +423,93 @@ const styles = {
     fontSize: "12px",
     color: "#5e7a93",
   },
-  navigationSection: {
+  recentSection: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "24px",
     marginBottom: "40px",
   },
-  navGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-    gap: "16px",
-  },
-  navCard: {
+  recentCard: {
     backgroundColor: "#ffffff",
     borderRadius: "20px",
-    padding: "20px",
-    textDecoration: "none",
-    transition: "all 0.2s ease",
+    padding: "24px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-    textAlign: "center",
   },
-  navCardIcon: {
-    fontSize: "32px",
-    marginBottom: "12px",
+  upcomingCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
   },
-  navCardTitle: {
-    fontSize: "14px",
+  cardHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "20px",
+  },
+  cardTitle: {
+    fontSize: "16px",
     fontWeight: "600",
     color: "#1a2c3e",
-    marginBottom: "4px",
   },
-  navCardDesc: {
-    fontSize: "11px",
+  cardBadge: {
+    fontSize: "12px",
+    padding: "4px 10px",
+    backgroundColor: "#f0f2f5",
+    borderRadius: "20px",
     color: "#5e7a93",
   },
+  activityList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  activityItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+  activityIcon: {
+    width: "32px",
+    height: "32px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "16px",
+  },
+  activityContent: {
+    flex: 1,
+  },
+  activityText: {
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "#1a2c3e",
+    marginBottom: "2px",
+  },
+  activityTime: {
+    fontSize: "12px",
+    color: "#5e7a93",
+  },
+  schedulePlaceholder: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "32px 0",
+  },
+  emptyStateIcon: {
+    fontSize: "40px",
+    marginBottom: "12px",
+    opacity: 0.6,
+  },
+  emptyStateText: {
+    fontSize: "14px",
+    color: "#5e7a93",
+    margin: 0,
+  },
   welcomeCard: {
-    backgroundColor: "linear-gradient(135deg, #1e6f5c 0%, #155a4b 100%)",
     background: "linear-gradient(135deg, #1e6f5c 0%, #155a4b 100%)",
     borderRadius: "24px",
     padding: "32px",
@@ -475,7 +542,6 @@ const styles = {
 if (typeof document !== "undefined") {
   const styleSheet = document.createElement("style");
   styleSheet.textContent = `
-    /* Full height for root elements */
     html, body, #root {
       margin: 0;
       padding: 0;
@@ -489,16 +555,8 @@ if (typeof document !== "undefined") {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
-    .nav-item:hover, .action-card:hover, .nav-card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-    }
     a:hover {
       background-color: #f8fafc;
-    }
-    .action-card:hover, .nav-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
     }
   `;
   document.head.appendChild(styleSheet);
