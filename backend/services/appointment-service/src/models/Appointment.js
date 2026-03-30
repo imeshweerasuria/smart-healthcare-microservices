@@ -4,7 +4,7 @@ const AppointmentSchema = new mongoose.Schema(
  {
    patientId: { type: String, required: true },
    doctorId: { type: String, required: true },
-   datetime: { type: Date, required: true },
+   slotNumber: { type: Number, required: true, min: 1, max: 10 },
    reason: { type: String, default: "" },
 
    status: {

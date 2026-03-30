@@ -12,34 +12,31 @@ const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
 
 router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
-    const { doctorId, datetime, reason } = req.body;
+    const { doctorId, slotNumber, reason } = req.body;
 
-    if (!doctorId || !datetime) {
-      return res.status(400).json({ message: "doctorId and datetime required" });
+    if (!doctorId || !slotNumber) {
+      return res.status(400).json({ message: "doctorId and slotNumber required" });
     }
 
-    const parsedDate = new Date(datetime);
-    if (Number.isNaN(parsedDate.getTime())) {
-      return res.status(400).json({ message: "Invalid datetime" });
+    if (slotNumber < 1 || slotNumber > 10) {
+      return res.status(400).json({ message: "slotNumber must be between 1 and 10" });
     }
 
-    if (parsedDate <= new Date()) {
-      return res.status(400).json({ message: "Appointment must be in the future" });
-    }
-
+    // Check doctor exists
     const doctorCheck = await axios.get(`${DOCTOR_URL}/doctors`);
     const doctorExists = doctorCheck.data.some((d) => d.userId === doctorId);
     if (!doctorExists) {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    const overlapping = await Appointment.findOne({
+    // Check if slot is already taken
+    const taken = await Appointment.findOne({
       doctorId,
-      datetime: parsedDate,
+      slotNumber,
       status: { $in: ["PENDING", "ACCEPTED", "CONFIRMED"] },
     });
 
-    if (overlapping) {
+    if (taken) {
       return res.status(409).json({ message: "This slot is already taken" });
     }
 
@@ -47,7 +44,7 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
       patientId: req.user.userId,
       patientEmail: req.user.email || "",
       doctorId,
-      datetime: parsedDate,
+      slotNumber,
       reason: reason || "",
       status: "PENDING",
     });
@@ -215,15 +212,10 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
 
 router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
-    const { datetime } = req.body;
+    const { slotNumber } = req.body;
 
-    if (!datetime) {
-      return res.status(400).json({ message: "New datetime required" });
-    }
-
-    const parsedDate = new Date(datetime);
-    if (Number.isNaN(parsedDate.getTime()) || parsedDate <= new Date()) {
-      return res.status(400).json({ message: "Invalid datetime" });
+    if (!slotNumber || slotNumber < 1 || slotNumber > 10) {
+      return res.status(400).json({ message: "slotNumber must be between 1 and 10" });
     }
 
     const appt = await Appointment.findById(req.params.id);
@@ -240,15 +232,15 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
     const overlapping = await Appointment.findOne({
       _id: { $ne: appt._id },
       doctorId: appt.doctorId,
-      datetime: parsedDate,
+      slotNumber,
       status: { $in: ["PENDING", "ACCEPTED", "CONFIRMED"] },
     });
 
     if (overlapping) {
-      return res.status(409).json({ message: "This new slot is already taken" });
+      return res.status(409).json({ message: "This slot is already taken" });
     }
 
-    appt.datetime = parsedDate;
+    appt.slotNumber = slotNumber;
     appt.status = "PENDING";
     appt.paymentStatus = "UNPAID";
     appt.telemedicineLink = "";
@@ -259,7 +251,7 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
         await axios.post(`${NOTIFICATION_URL}/notify/email`, {
           to: appt.patientEmail,
           subject: "Appointment Rescheduled",
-          text: `Your appointment ${appt._id} has been rescheduled to ${parsedDate.toLocaleString()}. Status reset to PENDING.`,
+          text: `Your appointment ${appt._id} has been rescheduled to slot ${slotNumber}. Status reset to PENDING.`,
         });
       } catch (notifyErr) {
         console.error("Reschedule email failed:", notifyErr.message);
@@ -299,6 +291,43 @@ router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async
     res.json({ message: "Appointment completed", appointment: appt });
   } catch (e) {
     res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/doctor/:doctorId/slots", requireAuth, async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+
+    const takenSlots = await Appointment.find({
+      doctorId,
+      status: { $in: ["PENDING", "ACCEPTED", "CONFIRMED"] }
+    }).select("slotNumber");
+
+    const slots = takenSlots.map(s => s.slotNumber);
+
+    res.json({
+      doctorId,
+      takenSlots: slots
+    });
+
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.patch("/:id/reason", async (req, res) => {  try {
+    const { reason } = req.body;
+
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id,
+      { reason },
+      { new: true }
+    );
+
+    res.json(appointment);
+  } catch (err) {
+    res.status(500).json({ message: "Update failed" });
   }
 });
 
