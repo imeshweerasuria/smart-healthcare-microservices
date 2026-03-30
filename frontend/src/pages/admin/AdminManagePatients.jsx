@@ -37,7 +37,11 @@ export default function AdminManagePatients() {
               ...patient,
               profile: profileRes.data || null,
             };
-          } catch {
+          } catch (err) {
+            if (err.response?.status !== 404) {
+              console.error(`Failed to load profile for patient ${patient._id}`, err);
+            }
+
             return {
               ...patient,
               profile: null,
