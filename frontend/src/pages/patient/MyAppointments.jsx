@@ -151,6 +151,33 @@ export default function MyAppointments() {
         return { bg: "#f5f5f5", color: "#757575", label: status };
     }
   };
+  // Refund handler
+const refundAppointment = async (a) => {
+  if (a.paymentStatus !== "PAID") return alert("Only PAID payments can be refunded!");
+  if (a.status !== "REJECTED") return alert("Only REJECTED appointments can be refunded!");
+
+  try {
+    setActionLoading(a._id, "refund", true);
+
+    await axios.post(
+      `${API.payment}/payments/refund`,
+      { appointmentId: a._id },
+      { headers: authHeaders() }
+    );
+
+     // Update UI: change paymentStatus to REFUNDED and hide refund button
+    setList(prev => prev.map(app => 
+      app._id === a._id ? { ...app, paymentStatus: "REFUNDED" } : app
+    ));
+
+    showToast("Refund successful!");
+  } catch (err) {
+    console.error(err.response?.data || err.message);
+    showToast(`Refund failed: ${err.response?.data?.message || err.message}`, "error");
+  } finally {
+    setActionLoading(a._id, "refund", false);
+  }
+};
 
   const getPaymentStatusStyle = (status) => {
     switch (status) {
@@ -158,6 +185,8 @@ export default function MyAppointments() {
         return { bg: "#e8f5e9", color: "#2e7d32", label: "Paid" };
       case "UNPAID":
         return { bg: "#ffebee", color: "#c62828", label: "Unpaid" };
+        case "REFUNDED":
+        return { bg: "#e0f7fa", color: "#006064", label: "Refunded" }; 
       default:
         return { bg: "#f5f5f5", color: "#757575", label: status || "Unpaid" };
     }
@@ -438,7 +467,7 @@ export default function MyAppointments() {
                       </a>
                     )}
 
-                    {a.status !== "CANCELLED" && a.paymentStatus !== "PAID" && (
+{a.status !== "CANCELLED" && a.paymentStatus !== "PAID" && a.paymentStatus !== "REFUNDED" && (
   <button
     onClick={() => startStripeCheckout(a._id)}
     style={styles.payBtn}
@@ -462,6 +491,20 @@ export default function MyAppointments() {
                         </svg>
 
     {loadingMap[a._id]?.cancel ? "Cancelling..." : "Cancel Appointment"}
+  </button>
+)}
+
+{a.status === "REJECTED" && a.paymentStatus === "PAID" && (
+  <button
+    onClick={() => refundAppointment(a)}
+    style={styles.refundBtn}
+    disabled={loadingMap[a._id]?.refund}
+  >
+     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C13.76 3 15.4 3.5 16.77 4.37M21 3L16 8M21 3H16M21 3V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+    {loadingMap[a._id]?.refund ? "Processing..." : "Refund"}
   </button>
 )}
                   </div>
@@ -971,4 +1014,19 @@ const styles = {
     cursor: "pointer",
     fontSize: "12px",
   },
+ refundBtn: {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+  padding: "10px 20px",
+  backgroundColor: "#fff3e0", // Light orange background to match warning style
+  color: "#ed6c02", // Orange text color
+  border: "none",
+  borderRadius: "40px",
+  fontSize: "13px",
+  fontWeight: "500",
+  cursor: "pointer",
+  transition: "all 0.2s ease",
+  fontFamily: "inherit",
+},
 };

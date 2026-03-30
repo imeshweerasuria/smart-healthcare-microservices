@@ -285,4 +285,49 @@ router.post("/mark-paid", requireAuth, async (req, res) => {
  }
 });
 
+// Refund endpoint
+router.post("/refund", requireAuth, async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+
+    if (!appointmentId) return res.status(400).json({ message: "Appointment ID required" });
+
+    const payment = await Payment.findOne({ appointmentId });
+    if (!payment) return res.status(404).json({ message: "Payment not found" });
+
+    if (payment.status === "REFUNDED") {
+      return res.status(400).json({ message: "Payment already refunded" });
+    }
+
+    if (payment.status !== "PAID") {
+      return res.status(400).json({ message: "Only PAID payments can be refunded" });
+    }
+
+    // Ensure appointment is fetched once
+    const appointment = await getAppointment(payment.appointmentId, req.headers.authorization);
+
+    // Refund in Stripe
+    const refund = await stripe.refunds.create({ payment_intent: payment.stripePaymentIntentId });
+
+    payment.status = "REFUNDED";
+    await payment.save();
+
+    // Send email async (don't block response)
+    if (appointment.patientEmail) {
+      axios.post(`${NOTIFICATION_URL}/notify/email`, {
+        to: appointment.patientEmail,
+        subject: "Payment Refunded",
+        text: `Your payment for appointment ${payment.appointmentId} has been refunded successfully.`,
+      })
+      .then(resp => console.log("Refund email sent:", resp.data))
+      .catch(err => console.error("Refund email failed:", err.response?.data || err.message));
+    }
+
+    return res.json({ ok: true, message: "Refund successful", refund });
+  } catch (err) {
+    console.error("Refund error:", err.response?.data || err.message);
+    return res.status(500).json({ message: err.message });
+  }
+});
+
 module.exports = router;
