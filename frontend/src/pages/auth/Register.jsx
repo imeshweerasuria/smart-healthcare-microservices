@@ -8,6 +8,7 @@ export default function Register() {
  const [form, setForm] = useState({
    name: "",
    email: "",
+   phone: "",
    password: "",
    role: "PATIENT",
  });
@@ -67,6 +68,20 @@ export default function Register() {
            value={form.email}
            onChange={handleChange}
            required
+         />
+       </div>
+
+       <br />
+
+       <div>
+         <label>Phone</label>
+         <br />
+         <input
+           name="phone"
+           type="text"
+           value={form.phone}
+           onChange={handleChange}
+           placeholder="+94XXXXXXXXX"
          />
        </div>
 
