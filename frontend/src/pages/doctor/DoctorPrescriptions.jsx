@@ -3,91 +3,69 @@ import axios from "axios";
 import { Link } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
 
-export default function DoctorAppointments() {
+export default function DoctorPrescriptions() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
 
-  const load = async () => {
+  useEffect(() => {
+    loadPrescriptions();
+  }, []);
+
+  const loadPrescriptions = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${API.appointment}/appointments/doctor/me`, {
-        headers: authHeaders(),
+      const res = await axios.get(`${API.doctor}/prescriptions/doctor/me`, { 
+        headers: authHeaders() 
       });
       setList(res.data);
-    } catch (e) {
-      console.error(e);
-      alert("Failed to load appointments");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to load prescriptions");
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    load();
-  }, []);
+  const getDateRange = () => {
+    const today = new Date();
+    const lastWeek = new Date(today);
+    lastWeek.setDate(today.getDate() - 7);
+    const lastMonth = new Date(today);
+    lastMonth.setMonth(today.getMonth() - 1);
+    return { today, lastWeek, lastMonth };
+  };
 
-  const updateStatus = async (id, status) => {
-    try {
-      await axios.put(
-        `${API.appointment}/appointments/${id}/status`,
-        { status },
-        { headers: authHeaders() }
-      );
-      alert(`Marked ${status}`);
-      load();
-    } catch (e) {
-      console.error(e);
-      alert("Update failed");
+  const filterPrescriptions = () => {
+    const { today, lastWeek, lastMonth } = getDateRange();
+    
+    switch(activeFilter) {
+      case "today":
+        return list.filter(p => new Date(p.createdAt).toDateString() === today.toDateString());
+      case "week":
+        return list.filter(p => new Date(p.createdAt) >= lastWeek);
+      case "month":
+        return list.filter(p => new Date(p.createdAt) >= lastMonth);
+      default:
+        return list;
     }
   };
 
-  const completeAppointment = async (id) => {
-    try {
-      await axios.patch(
-        `${API.appointment}/appointments/${id}/complete`,
-        {},
-        { headers: authHeaders() }
-      );
-      alert("Appointment completed");
-      load();
-    } catch (e) {
-      console.error(e);
-      alert("Complete failed");
-    }
-  };
-
-  const getStatusColor = (status) => {
-    switch(status) {
-      case "PENDING": return { bg: "#fff3e0", color: "#ed6c02", label: "Pending" };
-      case "ACCEPTED": return { bg: "#e3f2fd", color: "#0288d1", label: "Accepted" };
-      case "CONFIRMED": return { bg: "#e8f5e9", color: "#2e7d32", label: "Confirmed" };
-      case "REJECTED": return { bg: "#ffebee", color: "#c62828", label: "Rejected" };
-      case "COMPLETED": return { bg: "#e8f5e9", color: "#2e7d32", label: "Completed" };
-      default: return { bg: "#f5f5f5", color: "#757575", label: status };
-    }
-  };
-
-  const getPaymentStatusColor = (status) => {
-    switch(status) {
-      case "PAID": return { bg: "#e8f5e9", color: "#2e7d32" };
-      case "PENDING": return { bg: "#fff3e0", color: "#ed6c02" };
-      case "FAILED": return { bg: "#ffebee", color: "#c62828" };
-      default: return { bg: "#f5f5f5", color: "#757575" };
-    }
-  };
-
-  const filteredList = activeFilter === "all" 
-    ? list 
-    : list.filter(a => a.status === activeFilter);
+  const filteredList = filterPrescriptions();
 
   const stats = {
     total: list.length,
-    pending: list.filter(a => a.status === "PENDING").length,
-    accepted: list.filter(a => a.status === "ACCEPTED").length,
-    confirmed: list.filter(a => a.status === "CONFIRMED").length,
-    completed: list.filter(a => a.status === "COMPLETED").length,
-    rejected: list.filter(a => a.status === "REJECTED").length,
+    today: list.filter(p => new Date(p.createdAt).toDateString() === new Date().toDateString()).length,
+    week: list.filter(p => {
+      const lastWeek = new Date();
+      lastWeek.setDate(lastWeek.getDate() - 7);
+      return new Date(p.createdAt) >= lastWeek;
+    }).length,
+    month: list.filter(p => {
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      return new Date(p.createdAt) >= lastMonth;
+    }).length,
   };
 
   return (
@@ -109,7 +87,7 @@ export default function DoctorAppointments() {
             <div style={styles.userAvatar}>D</div>
             <div>
               <div style={styles.userName}>Doctor Portal</div>
-              <div style={styles.userRole}>Appointments</div>
+              <div style={styles.userRole}>Prescriptions</div>
             </div>
           </div>
         </div>
@@ -127,18 +105,18 @@ export default function DoctorAppointments() {
             <span style={styles.navIcon}>📅</span>
             <span>My Availability</span>
           </Link>
-          <div style={styles.navItemActive}>
+          <Link to="/doctor/appointments" style={styles.navItem}>
             <span style={styles.navIcon}>📋</span>
             <span>Appointment Requests</span>
-          </div>
+          </Link>
           <Link to="/doctor/patient-reports" style={styles.navItem}>
             <span style={styles.navIcon}>📊</span>
             <span>View Patient Reports</span>
           </Link>
-          <Link to="/doctor/prescriptions" style={styles.navItem}>
+          <div style={styles.navItemActive}>
             <span style={styles.navIcon}>💊</span>
             <span>My Issued Prescriptions</span>
-          </Link>
+          </div>
         </div>
       </div>
 
@@ -146,10 +124,10 @@ export default function DoctorAppointments() {
       <div style={styles.mainContent}>
         <div style={styles.header}>
           <div>
-            <h1 style={styles.title}>Appointment Requests</h1>
-            <p style={styles.subtitle}>Manage and respond to patient appointment requests</p>
+            <h1 style={styles.title}>My Issued Prescriptions</h1>
+            <p style={styles.subtitle}>View and manage all prescriptions you've issued to patients</p>
           </div>
-          <button onClick={load} style={styles.refreshBtn}>
+          <button onClick={loadPrescriptions} style={styles.refreshBtn} disabled={loading}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path d="M1 12C1 12 4 4 12 4C20 4 23 12 23 12C23 12 20 20 12 20C4 20 1 12 1 12Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -162,31 +140,31 @@ export default function DoctorAppointments() {
         {/* Stats Cards */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd"}}>📋</div>
+            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd"}}>💊</div>
             <div>
               <div style={styles.statValue}>{stats.total}</div>
-              <div style={styles.statLabel}>Total</div>
+              <div style={styles.statLabel}>Total Prescriptions</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#fff3e0"}}>⏳</div>
+            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9"}}>📅</div>
             <div>
-              <div style={styles.statValue}>{stats.pending}</div>
-              <div style={styles.statLabel}>Pending</div>
+              <div style={styles.statValue}>{stats.today}</div>
+              <div style={styles.statLabel}>Today</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd"}}>✓</div>
+            <div style={{...styles.statIcon, backgroundColor: "#fff3e0"}}>📆</div>
             <div>
-              <div style={styles.statValue}>{stats.accepted}</div>
-              <div style={styles.statLabel}>Accepted</div>
+              <div style={styles.statValue}>{stats.week}</div>
+              <div style={styles.statLabel}>Last 7 Days</div>
             </div>
           </div>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9"}}>✅</div>
+            <div style={{...styles.statIcon, backgroundColor: "#f3e5f5"}}>📊</div>
             <div>
-              <div style={styles.statValue}>{stats.completed}</div>
-              <div style={styles.statLabel}>Completed</div>
+              <div style={styles.statValue}>{stats.month}</div>
+              <div style={styles.statLabel}>Last 30 Days</div>
             </div>
           </div>
         </div>
@@ -202,35 +180,25 @@ export default function DoctorAppointments() {
               {stats.total > 0 && <span style={styles.badge}>{stats.total}</span>}
             </button>
             <button 
-              onClick={() => setActiveFilter("PENDING")}
-              style={activeFilter === "PENDING" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              onClick={() => setActiveFilter("today")}
+              style={activeFilter === "today" ? {...styles.tab, ...styles.tabActive} : styles.tab}
             >
-              Pending
-              {stats.pending > 0 && <span style={styles.badge}>{stats.pending}</span>}
+              Today
+              {stats.today > 0 && <span style={styles.badge}>{stats.today}</span>}
             </button>
             <button 
-              onClick={() => setActiveFilter("ACCEPTED")}
-              style={activeFilter === "ACCEPTED" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              onClick={() => setActiveFilter("week")}
+              style={activeFilter === "week" ? {...styles.tab, ...styles.tabActive} : styles.tab}
             >
-              Accepted
+              Last 7 Days
+              {stats.week > 0 && <span style={styles.badge}>{stats.week}</span>}
             </button>
             <button 
-              onClick={() => setActiveFilter("CONFIRMED")}
-              style={activeFilter === "CONFIRMED" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              onClick={() => setActiveFilter("month")}
+              style={activeFilter === "month" ? {...styles.tab, ...styles.tabActive} : styles.tab}
             >
-              Confirmed
-            </button>
-            <button 
-              onClick={() => setActiveFilter("COMPLETED")}
-              style={activeFilter === "COMPLETED" ? {...styles.tab, ...styles.tabActive} : styles.tab}
-            >
-              Completed
-            </button>
-            <button 
-              onClick={() => setActiveFilter("REJECTED")}
-              style={activeFilter === "REJECTED" ? {...styles.tab, ...styles.tabActive} : styles.tab}
-            >
-              Rejected
+              Last 30 Days
+              {stats.month > 0 && <span style={styles.badge}>{stats.month}</span>}
             </button>
           </div>
         </div>
@@ -238,126 +206,123 @@ export default function DoctorAppointments() {
         {loading ? (
           <div style={styles.loadingContainer}>
             <div style={styles.spinner}></div>
-            <p style={styles.loadingText}>Loading appointments...</p>
+            <p style={styles.loadingText}>Loading prescriptions...</p>
           </div>
         ) : filteredList.length === 0 ? (
           <div style={styles.emptyState}>
-            <div style={styles.emptyIcon}>📭</div>
-            <p style={styles.emptyText}>No appointments found</p>
+            <div style={styles.emptyIcon}>💊</div>
+            <p style={styles.emptyText}>No prescriptions found</p>
             <p style={styles.emptySubtext}>
               {activeFilter === "all" 
-                ? "You don't have any appointment requests yet" 
-                : `No ${activeFilter.toLowerCase()} appointments to display`}
+                ? "You haven't issued any prescriptions yet" 
+                : `No prescriptions issued in this time period`}
             </p>
+            <Link to="/doctor/appointments" style={styles.emptyActionBtn}>
+              View Appointments
+            </Link>
           </div>
         ) : (
-          <div style={styles.appointmentsGrid}>
-            {filteredList.map((a) => {
-              const statusStyle = getStatusColor(a.status);
-              const paymentStyle = getPaymentStatusColor(a.paymentStatus);
-              return (
-                <div key={a._id} style={styles.appointmentCard}>
-                  <div style={styles.cardHeader}>
-                    <div style={styles.patientInfo}>
-                      <div style={styles.patientAvatar}>
-                        {a.patientName?.charAt(0) || "P"}
-                      </div>
-                      <div>
-                        <div style={styles.patientId}>Patient ID: {a.patientId}</div>
-                        <div style={styles.appointmentDate}>
-                          📅 {new Date(a.datetime).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
-                        </div>
-                        <div style={styles.appointmentTime}>
-                          ⏰ {new Date(a.datetime).toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </div>
-                      </div>
+          <div style={styles.prescriptionsGrid}>
+            {filteredList.map((p) => (
+              <div key={p._id} style={styles.prescriptionCard}>
+                <div style={styles.cardHeader}>
+                  <div style={styles.patientInfo}>
+                    <div style={styles.patientAvatar}>
+                      {p.patientName?.charAt(0) || "P"}
                     </div>
-                    <div style={{...styles.statusBadge, backgroundColor: statusStyle.bg, color: statusStyle.color}}>
-                      {statusStyle.label}
+                    <div>
+                      <div style={styles.patientId}>Patient ID: {p.patientId}</div>
+                      <div style={styles.prescriptionDate}>
+                        📅 {new Date(p.createdAt).toLocaleDateString('en-US', { 
+                          year: 'numeric', 
+                          month: 'long', 
+                          day: 'numeric' 
+                        })}
+                      </div>
+                      <div style={styles.prescriptionTime}>
+                        ⏰ {new Date(p.createdAt).toLocaleTimeString('en-US', { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </div>
                     </div>
                   </div>
-
-                  <div style={styles.cardContent}>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Reason for visit:</span>
-                      <span style={styles.infoValue}>{a.reason || "Not specified"}</span>
-                    </div>
-                    <div style={styles.infoRow}>
-                      <span style={styles.infoLabel}>Payment Status:</span>
-                      <span style={{...styles.paymentBadge, backgroundColor: paymentStyle.bg, color: paymentStyle.color}}>
-                        {a.paymentStatus || "PENDING"}
-                      </span>
-                    </div>
-                    
-                    {a.telemedicineLink && (
-                      <div style={styles.telemedicineSection}>
-                        <span style={styles.infoLabel}>Telemedicine Link:</span>
-                        <a 
-                          href={a.telemedicineLink} 
-                          target="_blank" 
-                          rel="noreferrer" 
-                          style={styles.telemedicineLink}
-                        >
-                          🎥 Join Video Call
-                        </a>
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={styles.cardActions}>
-                    <Link 
-                      to={`/doctor/prescribe/${a.patientId}`} 
-                      style={styles.prescribeBtn}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 4v16M4 12h16"/>
-                      </svg>
-                      Issue Prescription
-                    </Link>
-                    
-                    {a.status === "PENDING" && (
-                      <div style={styles.actionButtons}>
-                        <button 
-                          onClick={() => updateStatus(a._id, "ACCEPTED")} 
-                          style={styles.acceptBtn}
-                        >
-                          ✓ Accept
-                        </button>
-                        <button 
-                          onClick={() => updateStatus(a._id, "REJECTED")} 
-                          style={styles.rejectBtn}
-                        >
-                          ✗ Reject
-                        </button>
-                      </div>
-                    )}
-
-                    {a.status === "CONFIRMED" && (
-                      <button 
-                        onClick={() => completeAppointment(a._id)} 
-                        style={styles.completeBtn}
-                      >
-                        ✓ Mark Completed
-                      </button>
-                    )}
+                  <div style={styles.prescriptionBadge}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 4v16M4 12h16"/>
+                    </svg>
+                    Prescription
                   </div>
                 </div>
-              );
-            })}
+
+                <div style={styles.cardContent}>
+                  {p.appointmentId && (
+                    <div style={styles.infoRow}>
+                      <span style={styles.infoLabel}>Appointment ID:</span>
+                      <span style={styles.infoValue}>{p.appointmentId}</span>
+                    </div>
+                  )}
+                  
+                  <div style={styles.medsSection}>
+                    <div style={styles.sectionHeader}>
+                      <span style={styles.sectionIcon}>💊</span>
+                      <span style={styles.sectionTitle}>Medications</span>
+                    </div>
+                    <div style={styles.medsContent}>
+                      {p.meds}
+                    </div>
+                  </div>
+
+                  {p.notes && (
+                    <div style={styles.notesSection}>
+                      <div style={styles.sectionHeader}>
+                        <span style={styles.sectionIcon}>📝</span>
+                        <span style={styles.sectionTitle}>Doctor's Notes</span>
+                      </div>
+                      <div style={styles.notesContent}>
+                        {p.notes}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.cardFooter}>
+                  <button 
+                    onClick={() => {
+                      // Optional: Add functionality to print or download prescription
+                      const printContent = `
+                        <html>
+                          <head><title>Prescription</title></head>
+                          <body>
+                            <h2>MediBook Prescription</h2>
+                            <p><strong>Patient ID:</strong> ${p.patientId}</p>
+                            <p><strong>Date:</strong> ${new Date(p.createdAt).toLocaleString()}</p>
+                            <p><strong>Medications:</strong> ${p.meds}</p>
+                            <p><strong>Notes:</strong> ${p.notes || "N/A"}</p>
+                          </body>
+                        </html>
+                      `;
+                      const printWindow = window.open('', '_blank');
+                      printWindow.document.write(printContent);
+                      printWindow.document.close();
+                      printWindow.print();
+                    }}
+                    style={styles.printBtn}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 18L18 18M6 14L18 14M6 10L18 10M6 6L18 6M6 22L18 22"/>
+                    </svg>
+                    Print
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         )}
         
         {!loading && filteredList.length > 0 && (
           <div style={styles.footerStats}>
-            Showing {filteredList.length} of {list.length} appointments
+            Showing {filteredList.length} of {list.length} prescriptions
           </div>
         )}
       </div>
@@ -369,7 +334,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",          // Force full viewport height
+    height: "100vh",  // ADDED: Forces full viewport height
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -483,8 +448,8 @@ const styles = {
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",           // Take full height of container
-    overflowY: "auto",        // Scroll if content overflows
+    height: "100%",  // ADDED: Takes full height
+    overflowY: "auto",  // ADDED: Enables scrolling within content
   },
   header: {
     display: "flex",
@@ -594,12 +559,12 @@ const styles = {
     fontSize: "12px",
     fontWeight: "600",
   },
-  appointmentsGrid: {
+  prescriptionsGrid: {
     display: "flex",
     flexDirection: "column",
     gap: "20px",
   },
-  appointmentCard: {
+  prescriptionCard: {
     backgroundColor: "#ffffff",
     borderRadius: "24px",
     overflow: "hidden",
@@ -639,30 +604,35 @@ const styles = {
     color: "#1a2c3e",
     marginBottom: "4px",
   },
-  appointmentDate: {
+  prescriptionDate: {
     fontSize: "13px",
     color: "#5e7a93",
     marginBottom: "2px",
   },
-  appointmentTime: {
+  prescriptionTime: {
     fontSize: "13px",
     color: "#5e7a93",
   },
-  statusBadge: {
-    padding: "6px 14px",
+  prescriptionBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 12px",
+    backgroundColor: "#e8f5e9",
+    color: "#2e7d32",
     borderRadius: "20px",
-    fontSize: "13px",
+    fontSize: "12px",
     fontWeight: "600",
   },
   cardContent: {
-    padding: "20px 24px",
+    padding: "24px",
     borderBottom: "1px solid #eef2f6",
   },
   infoRow: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    marginBottom: "12px",
+    marginBottom: "20px",
     flexWrap: "wrap",
   },
   infoLabel: {
@@ -676,91 +646,61 @@ const styles = {
     color: "#1a2c3e",
     flex: 1,
   },
-  paymentBadge: {
-    padding: "4px 12px",
-    borderRadius: "20px",
-    fontSize: "12px",
+  medsSection: {
+    marginBottom: "20px",
+  },
+  notesSection: {
+    marginTop: "20px",
+  },
+  sectionHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "12px",
+  },
+  sectionIcon: {
+    fontSize: "16px",
+  },
+  sectionTitle: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+  },
+  medsContent: {
+    backgroundColor: "#f8fafc",
+    padding: "16px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    color: "#1a2c3e",
+    lineHeight: "1.6",
+    fontFamily: "monospace",
+    whiteSpace: "pre-wrap",
+  },
+  notesContent: {
+    backgroundColor: "#f8fafc",
+    padding: "16px",
+    borderRadius: "12px",
+    fontSize: "14px",
+    color: "#5e7a93",
+    lineHeight: "1.6",
+    fontStyle: "italic",
+  },
+  cardFooter: {
+    padding: "16px 24px",
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+  printBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "8px 20px",
+    backgroundColor: "#f8fafc",
+    color: "#1e6f5c",
+    border: "1px solid #e2e8f0",
+    borderRadius: "40px",
+    fontSize: "13px",
     fontWeight: "500",
-  },
-  telemedicineSection: {
-    marginTop: "12px",
-    paddingTop: "12px",
-    borderTop: "1px solid #eef2f6",
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  telemedicineLink: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "8px 16px",
-    backgroundColor: "#e3f2fd",
-    color: "#0288d1",
-    textDecoration: "none",
-    borderRadius: "40px",
-    fontSize: "13px",
-    fontWeight: "500",
-    transition: "all 0.2s ease",
-  },
-  cardActions: {
-    padding: "20px 24px",
-    display: "flex",
-    gap: "12px",
-    flexWrap: "wrap",
-  },
-  prescribeBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    backgroundColor: "#e8f5e9",
-    color: "#2e7d32",
-    textDecoration: "none",
-    borderRadius: "40px",
-    fontSize: "13px",
-    fontWeight: "600",
-    transition: "all 0.2s ease",
-    fontFamily: "inherit",
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "8px",
-    flexWrap: "wrap",
-  },
-  acceptBtn: {
-    padding: "10px 24px",
-    backgroundColor: "#e8f5e9",
-    color: "#2e7d32",
-    border: "none",
-    borderRadius: "40px",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "inherit",
-  },
-  rejectBtn: {
-    padding: "10px 24px",
-    backgroundColor: "#ffebee",
-    color: "#c62828",
-    border: "none",
-    borderRadius: "40px",
-    fontSize: "13px",
-    fontWeight: "600",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    fontFamily: "inherit",
-  },
-  completeBtn: {
-    padding: "10px 24px",
-    backgroundColor: "#e8f5e9",
-    color: "#2e7d32",
-    border: "none",
-    borderRadius: "40px",
-    fontSize: "13px",
-    fontWeight: "600",
     cursor: "pointer",
     transition: "all 0.2s ease",
     fontFamily: "inherit",
@@ -806,6 +746,18 @@ const styles = {
   emptySubtext: {
     fontSize: "14px",
     color: "#5e7a93",
+    marginBottom: "24px",
+  },
+  emptyActionBtn: {
+    display: "inline-block",
+    padding: "10px 24px",
+    backgroundColor: "#1e6f5c",
+    color: "#ffffff",
+    textDecoration: "none",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "500",
+    transition: "all 0.2s ease",
   },
   footerStats: {
     marginTop: "24px",
@@ -816,48 +768,32 @@ const styles = {
   },
 };
 
-// Add global styles to ensure full height
+// Add keyframes animation
 if (typeof document !== "undefined") {
   const styleSheet = document.createElement("style");
   styleSheet.textContent = `
-    /* Ensure html and body take full height */
-    html, body, #root {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      width: 100%;
-    }
-    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
     
-    button:hover:not(:disabled), .refresh-btn:hover, .prescribe-btn:hover, .telemedicine-link:hover {
+    button:hover:not(:disabled), .refresh-btn:hover, .print-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
-    .nav-item:hover, .appointment-card:hover {
+    .empty-action-btn:hover {
+      background-color: #155a4b;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(30, 111, 92, 0.3);
+    }
+    
+    .nav-item:hover, .prescription-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     }
     
     a:hover {
       background-color: #f8fafc;
-    }
-    
-    .accept-btn:hover {
-      background-color: #c8e6c9;
-    }
-    
-    .reject-btn:hover {
-      background-color: #ffcdd2;
-    }
-    
-    input:focus {
-      border-color: #1e6f5c !important;
-      box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
-      outline: none;
     }
   `;
   document.head.appendChild(styleSheet);
