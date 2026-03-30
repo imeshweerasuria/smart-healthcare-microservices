@@ -593,11 +593,11 @@ const styles = {
   sectionIcon: {
     fontSize: "16px",
   },
-  sectionTitle: {
+  /*sectionTitle: {
     fontSize: "14px",
     fontWeight: "600",
     color: "#1a2c3e",
-  },
+  },*/
   sectionContent: {
     backgroundColor: "#f8fafc",
     padding: "16px",
