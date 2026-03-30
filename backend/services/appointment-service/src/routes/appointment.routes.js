@@ -1,3 +1,4 @@
+const cron = require("node-cron");
 const express = require("express");
 const axios = require("axios");
 
@@ -185,15 +186,16 @@ router.put("/:id/confirm-payment", requireAuth, async (req, res) => {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    if (appt.status !== "ACCEPTED") {
-      return res.status(400).json({ message: "Appointment must be ACCEPTED first" });
-    }
+   if (appt.status === "CANCELLED" || appt.status === "REJECTED") {
+  return res.status(400).json({
+    message: "Cannot pay for cancelled or rejected appointment"
+  });
+}
 
     appt.paymentStatus = "PAID";
-    appt.status = "CONFIRMED";
-    await appt.save();
+       await appt.save();
 
-    res.json({ ok: true, appointment: appt });
+    res.json({ ok: true, appointment: appt ,message: "Payment confirmed"});
   } catch (e) {
     res.status(500).json({ message: "Server error" });
   }
@@ -385,6 +387,49 @@ router.patch("/:id/reason", async (req, res) => {
     res.json(appointment);
   } catch (err) {
     res.status(500).json({ message: "Update failed" });
+  }
+});
+
+// Auto-cancel unpaid appointments after 5 minutes
+cron.schedule("* * * * *", async () => {
+  try {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+
+    const result = await Appointment.updateMany(
+      {
+        status: "PENDING",
+        paymentStatus: "UNPAID",
+        createdAt: { $lte: fiveMinutesAgo },
+      },
+      { status: "CANCELLED" }
+    );
+
+    if (result.modifiedCount > 0) {
+      console.log(`Auto-cancelled ${result.modifiedCount} unpaid appointments`);
+
+      // Optional: send cancellation email for each appointment
+      const cancelledAppointments = await Appointment.find({
+        status: "CANCELLED",
+        paymentStatus: "UNPAID",
+        createdAt: { $lte: fiveMinutesAgo },
+      });
+
+      for (const appt of cancelledAppointments) {
+        if (appt.patientEmail) {
+          try {
+            await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+              to: appt.patientEmail,
+              subject: "Appointment Auto-Cancelled",
+              text: `Your appointment ${appt._id} was automatically cancelled because payment was not received within 5 minutes.`,
+            });
+          } catch (notifyErr) {
+            console.error("Auto-cancel email failed:", notifyErr.message);
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Error in auto-cancel cron:", err);
   }
 });
 

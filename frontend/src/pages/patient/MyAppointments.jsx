@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
@@ -9,14 +9,15 @@ export default function MyAppointments() {
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-
-  // 1. Added State for Editing
   const [editingId, setEditingId] = useState(null);
   const [editReason, setEditReason] = useState("");
+  const [loadingMap, setLoadingMap] = useState({});
+  const toastTimeout = useRef();
 
   const showToast = (message, type = "success") => {
+    if (toastTimeout.current) clearTimeout(toastTimeout.current);
     setToast({ show: true, message, type });
-    setTimeout(() => {
+    toastTimeout.current = setTimeout(() => {
       setToast({ show: false, message: "", type: "success" });
     }, 3000);
   };
@@ -45,8 +46,19 @@ export default function MyAppointments() {
     load();
   }, []);
 
-  // 2. Added Update Function
+  // Helper to toggle per-action loading
+  const setActionLoading = (id, action, value) => {
+    setLoadingMap(prev => ({
+      ...prev,
+      [id]: {
+        ...prev[id],
+        [action]: value
+      }
+    }));
+  };
+
   const updateReason = async (appointmentId) => {
+    setActionLoading(appointmentId, "edit", true);
     try {
       await axios.patch(
         `${API.appointment}/appointments/${appointmentId}/reason`,
@@ -56,14 +68,21 @@ export default function MyAppointments() {
 
       showToast("Reason updated successfully", "success");
       setEditingId(null);
-      load();
+
+      // Optimistic update instead of full reload
+      setList(prev => prev.map(a => 
+        a._id === appointmentId ? { ...a, reason: editReason } : a
+      ));
     } catch (err) {
       console.error(err);
       showToast("Failed to update reason", "error");
+    } finally {
+      setActionLoading(appointmentId, "edit", false);
     }
   };
 
   const startStripeCheckout = async (appointmentId) => {
+    setActionLoading(appointmentId, "pay", true);
     try {
       const res = await axios.post(
         `${API.payment}/payments/checkout-session`,
@@ -79,10 +98,13 @@ export default function MyAppointments() {
     } catch (err) {
       console.error(err);
       showToast(err.response?.data?.message || "Stripe checkout failed", "error");
+    } finally {
+      setActionLoading(appointmentId, "pay", false);
     }
   };
 
   const cancelAppointment = async (appointmentId) => {
+    setActionLoading(appointmentId, "cancel", true);
     try {
       await axios.patch(
         `${API.appointment}/appointments/${appointmentId}/cancel`,
@@ -90,10 +112,16 @@ export default function MyAppointments() {
         { headers: authHeaders() }
       );
       showToast("Appointment cancelled successfully", "success");
-      load();
+
+      // Optimistic update
+      setList(prev => prev.map(a => 
+        a._id === appointmentId ? { ...a, status: "CANCELLED" } : a
+      ));
     } catch (err) {
       console.error(err);
       showToast("Failed to cancel appointment", "error");
+    } finally {
+      setActionLoading(appointmentId, "cancel", false);
     }
   };
 
@@ -302,7 +330,7 @@ export default function MyAppointments() {
               const paymentStyle = getPaymentStatusStyle(a.paymentStatus);
 
               return (
-                <div key={a._id} style={styles.appointmentCard}>
+                <div key={a._id} className="appointment-card" style={styles.appointmentCard}>
                   <div style={styles.cardHeader}>
                     <div style={styles.doctorInfo}>
                       <div style={styles.doctorAvatar}>
@@ -328,7 +356,6 @@ export default function MyAppointments() {
                       </div>
                     </div>
 
-                    {/* 3. Replaced Reason UI Section */}
                     <div style={styles.infoRow}>
                       <span style={styles.infoIcon}>📝</span>
                       <div style={{ width: "100%" }}>
@@ -340,19 +367,22 @@ export default function MyAppointments() {
                               value={editReason}
                               onChange={(e) => setEditReason(e.target.value)}
                               style={styles.editInput}
+                              disabled={loadingMap[a._id]?.edit}
                             />
 
                             <div style={{ marginTop: "8px", display: "flex", gap: "8px" }}>
                               <button
                                 onClick={() => updateReason(a._id)}
                                 style={styles.saveBtn}
+                                disabled={loadingMap[a._id]?.edit}
                               >
-                                Save
+                                {loadingMap[a._id]?.edit ? "Saving..." : "Save"}
                               </button>
 
                               <button
                                 onClick={() => setEditingId(null)}
                                 style={styles.cancelSmallBtn}
+                                disabled={loadingMap[a._id]?.edit}
                               >
                                 Cancel
                               </button>
@@ -364,7 +394,7 @@ export default function MyAppointments() {
                               {a.reason || "No reason provided"}
                             </div>
 
-                            {a.status === "PENDING" && (
+                            {a.status === "PENDING" && a.paymentStatus !== "PAID" && (
                               <button
                                 onClick={() => {
                                   setEditingId(a._id);
@@ -392,7 +422,8 @@ export default function MyAppointments() {
                   </div>
 
                   <div style={styles.cardActions}>
-                    {a.telemedicineLink && (
+                    {a.telemedicineLink && !["CANCELLED", "COMPLETED"].includes(a.status) && (
+
                       <a
                         href={a.telemedicineLink}
                         target="_blank"
@@ -407,29 +438,32 @@ export default function MyAppointments() {
                       </a>
                     )}
 
-                    {(a.status === "ACCEPTED" || a.status === "CONFIRMED") && a.paymentStatus !== "PAID" && (
-                      <button
-                        onClick={() => startStripeCheckout(a._id)}
-                        style={styles.payBtn}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {a.status !== "CANCELLED" && a.paymentStatus !== "PAID" && (
+  <button
+    onClick={() => startStripeCheckout(a._id)}
+    style={styles.payBtn}
+    disabled={loadingMap[a._id]?.pay}
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M3 10H21M7 15H11M7 18H14M5 4H19C20.1046 4 21 4.89543 21 6V18C21 19.1046 20.1046 20 19 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" />
                         </svg>
-                        Pay with Stripe
-                      </button>
-                    )}
 
-                    {["PENDING", "ACCEPTED", "CONFIRMED"].includes(a.status) && (
-                      <button
-                        onClick={() => cancelAppointment(a._id)}
-                        style={styles.cancelBtn}
-                      >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    {loadingMap[a._id]?.pay ? "Processing..." : "Pay with Stripe"}
+  </button>
+)}
+
+{a.status !== "CANCELLED" && a.status !== "COMPLETED" && a.status !== "REJECTED" && a.paymentStatus !== "PAID" && (  <button
+    onClick={() => cancelAppointment(a._id)}
+    style={styles.cancelBtn}
+    disabled={loadingMap[a._id]?.cancel}
+  >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
-                        Cancel Appointment
-                      </button>
-                    )}
+
+    {loadingMap[a._id]?.cancel ? "Cancelling..." : "Cancel Appointment"}
+  </button>
+)}
                   </div>
                 </div>
               );
@@ -463,13 +497,18 @@ export default function MyAppointments() {
           transform: translateY(-2px);
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
         }
+        
+        button:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
+          transform: none;
+        }
       `}</style>
     </div>
   );
 }
 
 const styles = {
-  // ... existing styles ...
   container: {
     display: "flex",
     minHeight: "100vh",
@@ -898,7 +937,6 @@ const styles = {
     fontWeight: "500",
     transition: "all 0.2s ease",
   },
-  // 4. Added Styles for editing
   editBtn: {
     marginTop: "6px",
     border: "none",

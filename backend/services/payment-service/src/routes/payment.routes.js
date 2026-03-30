@@ -78,9 +78,11 @@ router.post("/checkout-session", requireAuth, async (req, res) => {
      return res.status(403).json({ message: "You can only pay for your own appointment" });
    }
 
-   if (appointment.status !== "ACCEPTED") {
-     return res.status(400).json({ message: "Appointment must be ACCEPTED before checkout" });
-   }
+   if (appointment.status === "CANCELLED") {
+  return res.status(400).json({
+    message: "Cannot pay for cancelled appointment"
+  });
+}
 
    const existingOpen = await Payment.findOne({
      appointmentId,
@@ -205,8 +207,10 @@ router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
      message: "Stripe payment confirmed and appointment updated",
    });
  } catch (err) {
-   console.error("Confirm stripe success error:", err.message);
-   res.status(500).json({ message: err.message });
+console.error(
+  "Confirm stripe success error:",
+  err.response?.data || err.message
+);   res.status(500).json({ message: err.message });
  }
 });
 
