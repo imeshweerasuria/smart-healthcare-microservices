@@ -359,7 +359,7 @@ const styles = {
     display: "flex",
     minHeight: "100vh",
     width: "100%",
-    background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+    backgroundColor: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
   },
   sidebar: {
@@ -487,6 +487,7 @@ const styles = {
     padding: "40px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
+    backgroundColor: "#f5f7fa",
   },
   contentWrapper: {
     maxWidth: "1400px",

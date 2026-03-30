@@ -1,38 +1,22 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { API, authHeaders } from "../../api/client";
 import { Link, useNavigate } from "react-router-dom";
+import { API, authHeaders } from "../../api/client";
 import { clearSession, getName } from "../../api/auth";
 
 export default function DoctorProfile() {
   const navigate = useNavigate();
-  const [doctorData, setDoctorData] = useState({
-    name: "",
-    email: "",
-    specialty: "",
-    bio: "",
-    licenseNumber: "",
-    experience: "",
-    consultationFee: "",
-    rating: 0,
-    totalPatients: 0,
-    totalAppointments: 0,
-  });
   const [form, setForm] = useState({
     specialty: "",
     bio: "",
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  const [isEditing, setIsEditing] = useState(false);
-
-  const showToast = (message, type = "success") => {
-    setToast({ show: true, message, type });
-    setTimeout(() => {
-      setToast({ show: false, message: "", type: "success" });
-    }, 3000);
-  };
+  const [doctorInfo, setDoctorInfo] = useState({
+    name: "",
+    email: "",
+    doctorVerified: false,
+  });
 
   const logout = () => {
     clearSession();
@@ -46,26 +30,19 @@ export default function DoctorProfile() {
         headers: authHeaders(),
       });
 
-      setDoctorData({
-        name: res.data.name || getName() || "Doctor",
-        email: res.data.email || "",
-        specialty: res.data.specialty || "",
-        bio: res.data.bio || "",
-        licenseNumber: res.data.licenseNumber || "MED-LIC-2024-XXXX",
-        experience: res.data.experience || "5+ years",
-        consultationFee: res.data.consultationFee || "Rs 3150",
-        rating: res.data.rating || 4.8,
-        totalPatients: res.data.totalPatients || 0,
-        totalAppointments: res.data.totalAppointments || 0,
-      });
-
       setForm({
         specialty: res.data.specialty || "",
         bio: res.data.bio || "",
       });
+      
+      setDoctorInfo({
+        name: res.data.name || "",
+        email: res.data.email || "",
+        doctorVerified: res.data.doctorVerified || false,
+      });
     } catch (err) {
       console.error(err);
-      showToast("Failed to load profile", "error");
+      alert("Failed to load doctor profile");
     } finally {
       setLoading(false);
     }
@@ -75,15 +52,13 @@ export default function DoctorProfile() {
     load();
   }, []);
 
-  const handleChange = (e) => {
-    setForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
   const save = async (e) => {
     e.preventDefault();
+    
+    if (!form.specialty.trim()) {
+      alert("Please enter your specialty");
+      return;
+    }
 
     try {
       setSaving(true);
@@ -92,22 +67,47 @@ export default function DoctorProfile() {
         form,
         { headers: authHeaders() }
       );
-      
-      setDoctorData(prev => ({
-        ...prev,
-        specialty: form.specialty,
-        bio: form.bio,
-      }));
-      
-      showToast("Profile updated successfully!", "success");
-      setIsEditing(false);
+      alert("Profile updated successfully");
+      load(); // Reload to refresh data
     } catch (err) {
       console.error(err);
-      showToast(err.response?.data?.message || "Failed to update profile", "error");
+      alert("Update failed. Please try again.");
     } finally {
       setSaving(false);
     }
   };
+
+  const specialties = [
+    "Cardiology",
+    "Dermatology",
+    "Neurology",
+    "Pediatrics",
+    "Psychiatry",
+    "Orthopedics",
+    "Ophthalmology",
+    "Gynecology",
+    "Urology",
+    "General Medicine",
+    "Family Medicine",
+    "Emergency Medicine",
+    "Radiology",
+    "Anesthesiology",
+    "Surgery",
+  ];
+
+  // Add any custom specialty if it exists but not in the list (so selected value is visible)
+  const allSpecialties = form.specialty && !specialties.includes(form.specialty)
+    ? [form.specialty, ...specialties]
+    : specialties;
+
+  const navItems = [
+    { path: "/doctor", label: "Dashboard", icon: "🏠" },
+    { path: "/doctor/profile", label: "My Profile", icon: "👤", active: true },
+    { path: "/doctor/availability", label: "My Availability", icon: "📅" },
+    { path: "/doctor/appointments", label: "Appointment Requests", icon: "📋" },
+    { path: "/doctor/patient-reports", label: "View Patient Reports", icon: "📊" },
+    { path: "/doctor/prescriptions", label: "My Issued Prescriptions", icon: "💊" },
+  ];
 
   if (loading) {
     return (
@@ -124,39 +124,26 @@ export default function DoctorProfile() {
                 Medi<span style={styles.logoSpan}>Book</span>
               </div>
             </div>
-            <div style={styles.doctorInfo}>
-              <div style={styles.doctorAvatar}>{getName()?.charAt(0) || "D"}</div>
+            <div style={styles.userInfo}>
+              <div style={styles.userAvatar}>{doctorInfo.name?.charAt(0) || "D"}</div>
               <div>
-                <div style={styles.doctorName}>{getName() || "Dr. Smith"}</div>
-                <div style={styles.doctorRole}>Doctor</div>
+                <div style={styles.userName}>{doctorInfo.name || "Doctor"}</div>
+                <div style={styles.userRole}>Loading...</div>
               </div>
             </div>
           </div>
           <div style={styles.sidebarNav}>
-            <Link to="/doctor" style={styles.navItem}>
-              <span style={styles.navIcon}>🏠</span>
-              <span>Dashboard</span>
-            </Link>
-            <div style={styles.navItemActive}>
-              <span style={styles.navIcon}>👤</span>
-              <span>My Profile</span>
-            </div>
-            <Link to="/doctor/availability" style={styles.navItem}>
-              <span style={styles.navIcon}>📅</span>
-              <span>My Availability</span>
-            </Link>
-            <Link to="/doctor/appointments" style={styles.navItem}>
-              <span style={styles.navIcon}>📋</span>
-              <span>Appointment Requests</span>
-            </Link>
-            <Link to="/doctor/patient-reports" style={styles.navItem}>
-              <span style={styles.navIcon}>📊</span>
-              <span>View Patient Reports</span>
-            </Link>
-            <Link to="/doctor/prescriptions" style={styles.navItem}>
-              <span style={styles.navIcon}>💊</span>
-              <span>My Issued Prescriptions</span>
-            </Link>
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                style={item.active ? styles.navItemActive : styles.navItem}
+                className="nav-item"
+              >
+                <span style={styles.navIcon}>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
             <button onClick={logout} style={styles.logoutBtn}>
               <span style={styles.navIcon}>🚪</span>
               <span>Logout</span>
@@ -175,23 +162,7 @@ export default function DoctorProfile() {
 
   return (
     <div style={styles.container}>
-      {/* Toast Notification */}
-      {toast.show && (
-        <div style={{
-          ...styles.toast,
-          backgroundColor: toast.type === "success" ? "#4caf50" : "#f44336",
-          animation: "slideIn 0.3s ease-out"
-        }}>
-          <div style={styles.toastContent}>
-            <span style={styles.toastIcon}>
-              {toast.type === "success" ? "✓" : "✕"}
-            </span>
-            <span style={styles.toastMessage}>{toast.message}</span>
-          </div>
-        </div>
-      )}
-
-      {/* Sidebar - Same as DoctorDashboard */}
+      {/* Sidebar */}
       <div style={styles.sidebar}>
         <div style={styles.sidebarHeader}>
           <div style={styles.logo}>
@@ -204,40 +175,29 @@ export default function DoctorProfile() {
               Medi<span style={styles.logoSpan}>Book</span>
             </div>
           </div>
-          <div style={styles.doctorInfo}>
-            <div style={styles.doctorAvatar}>{doctorData.name?.charAt(0) || "D"}</div>
+          <div style={styles.userInfo}>
+            <div style={styles.userAvatar}>{doctorInfo.name?.charAt(0) || "D"}</div>
             <div>
-              <div style={styles.doctorName}>{doctorData.name}</div>
-              <div style={styles.doctorRole}>Doctor</div>
+              <div style={styles.userName}>{doctorInfo.name || "Doctor"}</div>
+              <div style={styles.userRole}>
+                {doctorInfo.doctorVerified ? "✓ Verified" : "⏳ Pending Verification"}
+              </div>
             </div>
           </div>
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor" style={styles.navItem}>
-            <span style={styles.navIcon}>🏠</span>
-            <span>Dashboard</span>
-          </Link>
-          <div style={styles.navItemActive}>
-            <span style={styles.navIcon}>👤</span>
-            <span>My Profile</span>
-          </div>
-          <Link to="/doctor/availability" style={styles.navItem}>
-            <span style={styles.navIcon}>📅</span>
-            <span>My Availability</span>
-          </Link>
-          <Link to="/doctor/appointments" style={styles.navItem}>
-            <span style={styles.navIcon}>📋</span>
-            <span>Appointment Requests</span>
-          </Link>
-          <Link to="/doctor/patient-reports" style={styles.navItem}>
-            <span style={styles.navIcon}>📊</span>
-            <span>View Patient Reports</span>
-          </Link>
-          <Link to="/doctor/prescriptions" style={styles.navItem}>
-            <span style={styles.navIcon}>💊</span>
-            <span>My Issued Prescriptions</span>
-          </Link>
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              style={item.active ? styles.navItemActive : styles.navItem}
+              className="nav-item"
+            >
+              <span style={styles.navIcon}>{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
           <button onClick={logout} style={styles.logoutBtn}>
             <span style={styles.navIcon}>🚪</span>
             <span>Logout</span>
@@ -250,193 +210,123 @@ export default function DoctorProfile() {
         <div style={styles.header}>
           <div>
             <h1 style={styles.title}>My Profile</h1>
-            <p style={styles.subtitle}>View and manage your professional information</p>
-          </div>
-          <div style={styles.headerBadge}>
-            <span style={styles.badgeIcon}>⚕️</span>
-            <span style={styles.badgeText}>Verified Professional</span>
+            <p style={styles.subtitle}>Manage your professional information and credentials</p>
           </div>
         </div>
 
-        {/* Profile Card - View Section */}
-        <div style={styles.profileCard}>
-          <div style={styles.profileHeader}>
+        {/* Profile Overview Card */}
+        <div style={styles.overviewCard}>
+          <div style={styles.overviewHeader}>
             <div style={styles.profileAvatar}>
-              {doctorData.name?.charAt(0) || "D"}
+              {doctorInfo.name?.charAt(0) || "D"}
             </div>
             <div style={styles.profileInfo}>
-              <h2 style={styles.profileName}>{doctorData.name}</h2>
-              <p style={styles.profileEmail}>{doctorData.email}</p>
-              <div style={styles.ratingContainer}>
-                <span style={styles.starIcon}>⭐</span>
-                <span style={styles.ratingValue}>{doctorData.rating}</span>
-                <span style={styles.ratingLabel}>Rating</span>
-              </div>
-            </div>
-            <div style={styles.statsContainer}>
-              <div style={styles.statItem}>
-                <div style={styles.statNumber}>{doctorData.totalPatients}</div>
-                <div style={styles.statText}>Total Patients</div>
-              </div>
-              <div style={styles.statDivider}></div>
-              <div style={styles.statItem}>
-                <div style={styles.statNumber}>{doctorData.totalAppointments}</div>
-                <div style={styles.statText}>Appointments</div>
-              </div>
-            </div>
-          </div>
-
-          <div style={styles.profileDetails}>
-            <div style={styles.detailGrid}>
-              <div style={styles.detailItem}>
-                <div style={styles.detailLabel}>🏥 Specialty</div>
-                <div style={styles.detailValue}>{doctorData.specialty || "Not specified"}</div>
-              </div>
-              <div style={styles.detailItem}>
-                <div style={styles.detailLabel}>📜 License Number</div>
-                <div style={styles.detailValue}>{doctorData.licenseNumber}</div>
-              </div>
-              <div style={styles.detailItem}>
-                <div style={styles.detailLabel}>⏳ Experience</div>
-                <div style={styles.detailValue}>{doctorData.experience}</div>
-              </div>
-              <div style={styles.detailItem}>
-                <div style={styles.detailLabel}>💰 Consultation Fee</div>
-                <div style={styles.detailValue}>{doctorData.consultationFee}</div>
-              </div>
-              <div style={styles.detailItemFull}>
-                <div style={styles.detailLabel}>📝 Bio</div>
-                <div style={styles.detailValue}>{doctorData.bio || "No bio provided yet"}</div>
+              <h2 style={styles.profileName}>{doctorInfo.name || "Doctor"}</h2>
+              <p style={styles.profileEmail}>{doctorInfo.email}</p>
+              <div style={styles.verificationBadge}>
+                {doctorInfo.doctorVerified ? (
+                  <>
+                    <span style={styles.verifiedIcon}>✓</span>
+                    <span style={styles.verifiedText}>Verified Doctor</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={styles.pendingIcon}>⏳</span>
+                    <span style={styles.pendingText}>Pending Verification</span>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Edit Section - Form */}
-        <div style={styles.editSection}>
-          <div style={styles.editHeader}>
-            <h3 style={styles.editTitle}>
-              <span style={styles.editIcon}>✏️</span>
-              Edit Profile Information
-            </h3>
-            {!isEditing ? (
-              <button 
-                onClick={() => setIsEditing(true)}
-                style={styles.editButton}
+        {/* Edit Profile Form */}
+        <div style={styles.formCard}>
+          <h3 style={styles.sectionTitle}>Professional Information</h3>
+          <form onSubmit={save} style={styles.form}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>
+                Specialty <span style={styles.required}>*</span>
+              </label>
+              <select
+                value={form.specialty}
+                onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                style={styles.select}
+                required
               >
-                Edit Profile
-              </button>
-            ) : (
+                <option value="">Select your specialty</option>
+                {allSpecialties.map((spec) => (
+                  <option key={spec} value={spec}>
+                    {spec}
+                  </option>
+                ))}
+              </select>
+              <p style={styles.hintText}>
+                Choose your primary medical specialty
+              </p>
+            </div>
+
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Bio / Professional Summary</label>
+              <textarea
+                value={form.bio}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                rows={6}
+                style={styles.textarea}
+                placeholder="Tell patients about your experience, approach to care, and areas of expertise..."
+              />
+              <p style={styles.hintText}>
+                {form.bio.length}/500 characters
+              </p>
+            </div>
+
+            <div style={styles.formActions}>
               <button 
-                onClick={() => {
-                  setIsEditing(false);
-                  setForm({
-                    specialty: doctorData.specialty,
-                    bio: doctorData.bio,
-                  });
-                }}
-                style={styles.cancelButton}
+                type="submit" 
+                style={styles.saveBtn}
+                disabled={saving}
+              >
+                {saving ? (
+                  <>
+                    <div style={styles.smallSpinner}></div>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M20 12V8H4V12M12 4V20M8 16L12 20L16 16"/>
+                    </svg>
+                    Save Profile
+                  </>
+                )}
+              </button>
+              <button 
+                type="button" 
+                onClick={load} 
+                style={styles.cancelBtn}
+                disabled={saving}
               >
                 Cancel
               </button>
-            )}
-          </div>
-
-          {isEditing && (
-            <div style={styles.formContainer}>
-              <form onSubmit={save} style={styles.form}>
-                <div style={styles.formGrid}>
-                  <div style={styles.formGroup}>
-                    <label style={styles.label}>
-                      <span style={styles.labelIcon}>🏥</span>
-                      Specialty
-                    </label>
-                    <input
-                      type="text"
-                      name="specialty"
-                      value={form.specialty}
-                      onChange={handleChange}
-                      placeholder="e.g., Cardiologist, Dermatologist, Pediatrician"
-                      style={styles.input}
-                    />
-                    <p style={styles.helperText}>Your primary medical specialty</p>
-                  </div>
-
-                  <div style={styles.formGroupFull}>
-                    <label style={styles.label}>
-                      <span style={styles.labelIcon}>📝</span>
-                      Professional Bio
-                    </label>
-                    <textarea
-                      name="bio"
-                      value={form.bio}
-                      onChange={handleChange}
-                      rows={5}
-                      placeholder="Describe your professional background, experience, education, certifications, and areas of expertise..."
-                      style={styles.textarea}
-                    />
-                    <p style={styles.helperText}>This information will be visible to patients</p>
-                  </div>
-                </div>
-
-                <div style={styles.formActions}>
-                  <button 
-                    type="submit" 
-                    disabled={saving}
-                    style={saving ? styles.submitBtnDisabled : styles.submitBtn}
-                  >
-                    {saving ? (
-                      <>
-                        <div style={styles.smallSpinner}></div>
-                        Saving Changes...
-                      </>
-                    ) : (
-                      <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <path d="M20 6L9 17L4 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                        </svg>
-                        Save Changes
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
             </div>
-          )}
+          </form>
+        </div>
+
+        {/* Tips Card */}
+        <div style={styles.tipsCard}>
+          <div style={styles.tipsHeader}>
+            <span style={styles.tipsIcon}>💡</span>
+            <span style={styles.tipsTitle}>Profile Tips</span>
+          </div>
+          <ul style={styles.tipsList}>
+            <li>Add your specialty to help patients find you more easily</li>
+            <li>A detailed bio builds trust with potential patients</li>
+            <li>Include your years of experience and areas of expertise</li>
+            <li>Update your profile regularly to reflect any new certifications</li>
+            <li>Your profile will be verified by the admin before going live</li>
+          </ul>
         </div>
       </div>
-
-      <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        
-        @keyframes slideIn {
-          from {
-            transform: translateX(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateX(0);
-            opacity: 1;
-          }
-        }
-        
-        input:focus, select:focus, textarea:focus {
-          border-color: #1e6f5c !important;
-          box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
-          outline: none;
-        }
-        
-        button:hover:not(:disabled) {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-        
-        a:hover {
-          background-color: #f8fafc;
-        }
-      `}</style>
     </div>
   );
 }
@@ -445,46 +335,11 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    width: "100vw",
+    height: "100vh",
+    width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    margin: 0,
-    padding: 0,
-    overflowX: "hidden",
-    position: "relative",
-  },
-  toast: {
-    position: "fixed",
-    top: "24px",
-    right: "24px",
-    zIndex: 1000,
-    padding: "14px 20px",
-    borderRadius: "12px",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
-    color: "#ffffff",
-    minWidth: "280px",
-    maxWidth: "400px",
-  },
-  toastContent: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-  },
-  toastIcon: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    width: "24px",
-    height: "24px",
-    borderRadius: "50%",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  toastMessage: {
-    fontSize: "14px",
-    fontWeight: "500",
-    flex: 1,
+    overflow: "hidden",
   },
   sidebar: {
     width: "280px",
@@ -498,7 +353,6 @@ const styles = {
     height: "100vh",
     overflowY: "auto",
     zIndex: 100,
-    flexShrink: 0,
   },
   sidebarHeader: {
     padding: "32px 24px",
@@ -529,12 +383,12 @@ const styles = {
     fontWeight: "400",
     color: "#1e6f5c",
   },
-  doctorInfo: {
+  userInfo: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
   },
-  doctorAvatar: {
+  userAvatar: {
     width: "48px",
     height: "48px",
     backgroundColor: "#e8f5e9",
@@ -546,12 +400,12 @@ const styles = {
     fontSize: "20px",
     fontWeight: "600",
   },
-  doctorName: {
+  userName: {
     fontSize: "15px",
     fontWeight: "600",
     color: "#1a2c3e",
   },
-  doctorRole: {
+  userRole: {
     fontSize: "12px",
     color: "#5e7a93",
     marginTop: "2px",
@@ -571,7 +425,6 @@ const styles = {
     borderRadius: "12px",
     color: "#5e7a93",
     textDecoration: "none",
-    transition: "all 0.2s ease",
     fontSize: "14px",
     fontWeight: "500",
   },
@@ -604,25 +457,18 @@ const styles = {
     fontWeight: "500",
     fontFamily: "inherit",
     marginTop: "auto",
-    transition: "all 0.2s ease",
   },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
+    padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    backgroundColor: "#f5f7fa",
-    padding: "32px 48px",
-    boxSizing: "border-box",
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
     marginBottom: "32px",
-    flexWrap: "wrap",
-    gap: "16px",
-    width: "100%",
   },
   title: {
     fontSize: "32px",
@@ -636,224 +482,99 @@ const styles = {
     color: "#5e7a93",
     margin: 0,
   },
-  headerBadge: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    backgroundColor: "#e8f5e9",
-    padding: "8px 16px",
-    borderRadius: "40px",
-  },
-  badgeIcon: {
-    fontSize: "16px",
-  },
-  badgeText: {
-    fontSize: "13px",
-    fontWeight: "500",
-    color: "#1e6f5c",
-  },
-  profileCard: {
+  overviewCard: {
     backgroundColor: "#ffffff",
     borderRadius: "24px",
-    overflow: "hidden",
+    padding: "32px",
     marginBottom: "32px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
   },
-  profileHeader: {
-    padding: "32px",
-    background: "linear-gradient(135deg, #1e6f5c 0%, #0a3d32 100%)",
+  overviewHeader: {
     display: "flex",
     alignItems: "center",
     gap: "24px",
     flexWrap: "wrap",
   },
   profileAvatar: {
-    width: "100px",
-    height: "100px",
-    backgroundColor: "#ffffff",
-    borderRadius: "50%",
+    width: "96px",
+    height: "96px",
+    backgroundColor: "#e8f5e9",
+    borderRadius: "48px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "48px",
+    fontSize: "40px",
     fontWeight: "600",
     color: "#1e6f5c",
-    boxShadow: "0 4px 20px rgba(0, 0, 0, 0.15)",
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: "28px",
+    fontSize: "24px",
     fontWeight: "600",
-    color: "#ffffff",
+    color: "#1a2c3e",
     margin: "0 0 8px 0",
   },
   profileEmail: {
     fontSize: "14px",
-    color: "rgba(255, 255, 255, 0.9)",
+    color: "#5e7a93",
     margin: "0 0 12px 0",
   },
-  ratingContainer: {
-    display: "flex",
+  verificationBadge: {
+    display: "inline-flex",
     alignItems: "center",
     gap: "6px",
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
     padding: "6px 12px",
     borderRadius: "20px",
-    width: "fit-content",
-  },
-  starIcon: {
-    fontSize: "14px",
-  },
-  ratingValue: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: "#ffffff",
-  },
-  ratingLabel: {
-    fontSize: "12px",
-    color: "rgba(255, 255, 255, 0.8)",
-  },
-  statsContainer: {
-    display: "flex",
-    alignItems: "center",
-    gap: "24px",
-    backgroundColor: "rgba(255, 255, 255, 0.15)",
-    padding: "16px 24px",
-    borderRadius: "16px",
-  },
-  statItem: {
-    textAlign: "center",
-  },
-  statNumber: {
-    fontSize: "28px",
-    fontWeight: "700",
-    color: "#ffffff",
-  },
-  statText: {
-    fontSize: "12px",
-    color: "rgba(255, 255, 255, 0.9)",
-    marginTop: "4px",
-  },
-  statDivider: {
-    width: "1px",
-    height: "30px",
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
-  },
-  profileDetails: {
-    padding: "32px",
-  },
-  detailGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "24px",
-  },
-  detailItem: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  detailItemFull: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    gridColumn: "span 2",
-  },
-  detailLabel: {
     fontSize: "13px",
     fontWeight: "500",
-    color: "#5e7a93",
-    letterSpacing: "0.3px",
   },
-  detailValue: {
-    fontSize: "15px",
-    fontWeight: "500",
-    color: "#1a2c3e",
+  verifiedIcon: {
+    color: "#2e7d32",
+    fontSize: "14px",
   },
-  editSection: {
+  verifiedText: {
+    color: "#2e7d32",
+  },
+  pendingIcon: {
+    color: "#ed6c02",
+    fontSize: "14px",
+  },
+  pendingText: {
+    color: "#ed6c02",
+  },
+  formCard: {
     backgroundColor: "#ffffff",
     borderRadius: "24px",
-    overflow: "hidden",
+    padding: "32px",
+    marginBottom: "32px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
   },
-  editHeader: {
-    padding: "24px 32px",
-    borderBottom: "1px solid #eef2f6",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  editTitle: {
+  sectionTitle: {
     fontSize: "18px",
     fontWeight: "600",
     color: "#1a2c3e",
-    margin: 0,
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-  },
-  editIcon: {
-    fontSize: "20px",
-  },
-  editButton: {
-    padding: "10px 24px",
-    backgroundColor: "#1e6f5c",
-    color: "#ffffff",
-    border: "none",
-    borderRadius: "40px",
-    fontSize: "14px",
-    fontWeight: "500",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    transition: "all 0.2s ease",
-  },
-  cancelButton: {
-    padding: "10px 24px",
-    backgroundColor: "#f1f3f5",
-    color: "#5e7a93",
-    border: "none",
-    borderRadius: "40px",
-    fontSize: "14px",
-    fontWeight: "500",
-    cursor: "pointer",
-    fontFamily: "inherit",
-    transition: "all 0.2s ease",
-  },
-  formContainer: {
-    padding: "32px",
+    marginBottom: "24px",
   },
   form: {
-    width: "100%",
-  },
-  formGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(2, 1fr)",
-    gap: "24px",
+    maxWidth: "100%",
   },
   formGroup: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  formGroupFull: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-    gridColumn: "span 2",
+    marginBottom: "24px",
   },
   label: {
+    display: "block",
     fontSize: "14px",
-    fontWeight: "500",
+    fontWeight: "600",
     color: "#1a2c3e",
-    display: "flex",
-    alignItems: "center",
-    gap: "6px",
+    marginBottom: "8px",
   },
-  labelIcon: {
-    fontSize: "16px",
+  required: {
+    color: "#c62828",
   },
-  input: {
+  select: {
+    width: "100%",
     padding: "12px 16px",
     fontSize: "14px",
     border: "1.5px solid #e2e8f0",
@@ -862,8 +583,11 @@ const styles = {
     outline: "none",
     transition: "all 0.2s ease",
     backgroundColor: "#ffffff",
+    cursor: "pointer",
+    color: "#1a2c3e",
   },
   textarea: {
+    width: "100%",
     padding: "12px 16px",
     fontSize: "14px",
     border: "1.5px solid #e2e8f0",
@@ -872,23 +596,23 @@ const styles = {
     outline: "none",
     transition: "all 0.2s ease",
     resize: "vertical",
-    backgroundColor: "#ffffff",
   },
-  helperText: {
+  hintText: {
+    marginTop: "6px",
     fontSize: "12px",
     color: "#5e7a93",
-    margin: "4px 0 0 0",
   },
   formActions: {
+    display: "flex",
+    gap: "12px",
     marginTop: "32px",
-    display: "flex",
-    justifyContent: "flex-end",
   },
-  submitBtn: {
-    display: "flex",
+  saveBtn: {
+    display: "inline-flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "8px",
-    padding: "12px 28px",
+    padding: "12px 32px",
     backgroundColor: "#1e6f5c",
     color: "#ffffff",
     border: "none",
@@ -898,28 +622,55 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.2s ease",
     fontFamily: "inherit",
+    minWidth: "140px",
   },
-  submitBtnDisabled: {
+  cancelBtn: {
+    padding: "12px 32px",
+    backgroundColor: "#ffffff",
+    color: "#5e7a93",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    fontFamily: "inherit",
+  },
+  tipsCard: {
+    backgroundColor: "#f8fafc",
+    borderRadius: "20px",
+    padding: "20px",
+    border: "1px solid #eef2f6",
+  },
+  tipsHeader: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    padding: "12px 28px",
-    backgroundColor: "#e2e8f0",
-    color: "#9aaebf",
-    border: "none",
-    borderRadius: "40px",
+    marginBottom: "12px",
+  },
+  tipsIcon: {
+    fontSize: "20px",
+  },
+  tipsTitle: {
     fontSize: "14px",
     fontWeight: "600",
-    cursor: "not-allowed",
-    fontFamily: "inherit",
+    color: "#1a2c3e",
+  },
+  tipsList: {
+    margin: 0,
+    paddingLeft: "20px",
+    color: "#5e7a93",
+    fontSize: "13px",
+    lineHeight: "1.6",
   },
   loadingContainer: {
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: "100vh",
     padding: "80px 20px",
+    backgroundColor: "#ffffff",
+    borderRadius: "24px",
   },
   spinner: {
     width: "40px",
@@ -944,41 +695,40 @@ const styles = {
   },
 };
 
-// Add keyframes animation
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
-  
-  body {
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
-  
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  
-  input:focus, select:focus, textarea:focus {
-    border-color: #1e6f5c !important;
-    box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
-    outline: none;
-  }
-  
-  button:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  }
-  
-  a:hover {
-    background-color: #f8fafc;
-  }
-`;
-
+// Add keyframes animation and option styling
 if (typeof document !== "undefined") {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    input:focus, select:focus, textarea:focus {
+      border-color: #1e6f5c !important;
+      box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
+      outline: none;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .nav-item:hover {
+      background-color: #f8fafc;
+      transform: translateX(4px);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
+    }
+    
+    /* Ensure select options are always visible */
+    select, option {
+      color: #1a2c3e;
+      background-color: #ffffff;
+    }
+  `;
   document.head.appendChild(styleSheet);
 }

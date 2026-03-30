@@ -34,6 +34,9 @@ import IssuePrescription from "../pages/doctor/IssuePrescription";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminAppointments from "../pages/admin/AdminAppointments";
 import AdminPaymentSummary from "../pages/admin/AdminPaymentSummary";
+import AdminManageDoctors from "../pages/admin/AdminManageDoctors";
+import AdminManagePatients from "../pages/admin/AdminManagePatients";
+import AdminReports from "../pages/admin/AdminReports";
 
 function HomeRedirect() {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
@@ -78,11 +81,12 @@ export default function AppRoutes() {
         <Route path="/doctor/prescribe/:patientId" element={<ProtectedRoute roles={["DOCTOR"]}><IssuePrescription /></ProtectedRoute>} />
 
         {/* ADMIN */}
-        <Route path="/admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/admin/appointments" element={<ProtectedRoute roles={["ADMIN"]}><AdminAppointments /></ProtectedRoute>} />
-        <Route path="/admin/payments" element={<ProtectedRoute roles={["ADMIN"]}><AdminPaymentSummary /></ProtectedRoute>} />
-
-        <Route path="*" element={<div style={{ padding: 24 }}>404 - Not Found</div>} />
+<Route path="/admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
+<Route path="/admin/doctors" element={<ProtectedRoute roles={["ADMIN"]}><AdminManageDoctors /></ProtectedRoute>} />
+<Route path="/admin/patients" element={<ProtectedRoute roles={["ADMIN"]}><AdminManagePatients /></ProtectedRoute>} />
+<Route path="/admin/appointments" element={<ProtectedRoute roles={["ADMIN"]}><AdminAppointments /></ProtectedRoute>} />
+<Route path="/admin/payments" element={<ProtectedRoute roles={["ADMIN"]}><AdminPaymentSummary /></ProtectedRoute>} />
+<Route path="/admin/reports" element={<ProtectedRoute roles={["ADMIN"]}><AdminReports /></ProtectedRoute>}  />
       </Routes>
     </BrowserRouter>
   );
