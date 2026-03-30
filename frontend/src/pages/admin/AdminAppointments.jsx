@@ -366,6 +366,26 @@ export default function AdminAppointments() {
           to { transform: rotate(360deg); }
         }
         
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        
+        #root {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        
         .stat-card, .appointment-card {
           transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
@@ -416,10 +436,11 @@ export default function AdminAppointments() {
 const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh",
     width: "100%",
+    height: "100vh",
     background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    overflow: "hidden",
   },
   sidebar: {
     width: "280px",
@@ -428,12 +449,9 @@ const styles = {
     borderRight: "1px solid rgba(0, 0, 0, 0.05)",
     display: "flex",
     flexDirection: "column",
-    position: "fixed",
-    top: 0,
-    left: 0,
     height: "100vh",
     overflowY: "auto",
-    zIndex: 100,
+    flexShrink: 0,
   },
   sidebarHeader: {
     padding: "32px 24px",
@@ -542,15 +560,14 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    marginLeft: "280px",
-    padding: "40px",
-    width: "calc(100% - 280px)",
-    minHeight: "100vh",
     overflowY: "auto",
+    height: "100vh",
+    padding: "40px",
   },
   content: {
     maxWidth: "1400px",
     margin: "0 auto",
+    paddingBottom: "40px",
   },
   header: {
     display: "flex",

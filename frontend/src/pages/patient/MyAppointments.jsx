@@ -458,6 +458,11 @@ export default function MyAppointments() {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
+        
+        .appointment-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
       `}</style>
     </div>
   );

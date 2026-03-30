@@ -69,134 +69,145 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
 });
 
 router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
- const list = await Appointment.find({ patientId: req.user.userId }).sort({ createdAt: -1 });
- res.json(list);
+  const list = await Appointment.find({ patientId: req.user.userId }).sort({ createdAt: -1 });
+  res.json(list);
 });
 
 router.get("/doctor/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
- const list = await Appointment.find({ doctorId: req.user.userId }).sort({ createdAt: -1 });
- res.json(list);
+  const list = await Appointment.find({ doctorId: req.user.userId }).sort({ createdAt: -1 });
+  res.json(list);
+});
+
+// Admin route to get all appointments
+router.get("/admin/all", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    const appointments = await Appointment.find().sort({ createdAt: -1 });
+    res.json(appointments);
+  } catch (e) {
+    console.error("Error fetching all appointments:", e.message);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.get("/:id", requireAuth, async (req, res) => {
- try {
-   const appt = await Appointment.findById(req.params.id);
-   if (!appt) return res.status(404).json({ message: "Appointment not found" });
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-   const isPatientOwner = req.user.role === "PATIENT" && appt.patientId === req.user.userId;
-   const isDoctorOwner = req.user.role === "DOCTOR" && appt.doctorId === req.user.userId;
-   const isAdmin = req.user.role === "ADMIN";
+    const isPatientOwner = req.user.role === "PATIENT" && appt.patientId === req.user.userId;
+    const isDoctorOwner = req.user.role === "DOCTOR" && appt.doctorId === req.user.userId;
+    const isAdmin = req.user.role === "ADMIN";
 
-   if (!isPatientOwner && !isDoctorOwner && !isAdmin) {
-     return res.status(403).json({ message: "Forbidden" });
-   }
+    if (!isPatientOwner && !isDoctorOwner && !isAdmin) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
-   res.json(appt);
- } catch (e) {
-   res.status(500).json({ message: "Server error" });
- }
+    res.json(appt);
+  } catch (e) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) => {
- try {
-   const { status } = req.body;
+  try {
+    const { status } = req.body;
 
-   if (!["ACCEPTED", "REJECTED"].includes(status)) {
-     return res.status(400).json({ message: "status must be ACCEPTED or REJECTED" });
-   }
+    if (!["ACCEPTED", "REJECTED"].includes(status)) {
+      return res.status(400).json({ message: "status must be ACCEPTED or REJECTED" });
+    }
 
-   const appt = await Appointment.findById(req.params.id);
-   if (!appt) return res.status(404).json({ message: "Appointment not found" });
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-   if (appt.doctorId !== req.user.userId) {
-     return res.status(403).json({ message: "Forbidden" });
-   }
+    if (appt.doctorId !== req.user.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
-   if (appt.status !== "PENDING") {
-     return res.status(400).json({ message: "Only PENDING appointments can be updated" });
-   }
+    if (appt.status !== "PENDING") {
+      return res.status(400).json({ message: "Only PENDING appointments can be updated" });
+    }
 
-   appt.status = status;
+    appt.status = status;
 
-   if (status === "ACCEPTED") {
-     const tele = await axios.post(`${TELEMEDICINE_URL}/telemedicine/session`, {
-       appointmentId: appt._id.toString(),
-     });
+    if (status === "ACCEPTED") {
+      const tele = await axios.post(`${TELEMEDICINE_URL}/telemedicine/session`, {
+        appointmentId: appt._id.toString(),
+      });
 
-     appt.telemedicineLink = tele.data.meetingUrl || "";
+      appt.telemedicineLink = tele.data.meetingUrl || "";
 
-     if (appt.patientEmail) {
-       await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-         to: appt.patientEmail,
-         subject: "Appointment Accepted - Telemedicine Link",
-         text: `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointmentId: ${appt._id}`,
-       });
-     }
-   }
+      if (appt.patientEmail) {
+        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+          to: appt.patientEmail,
+          subject: "Appointment Accepted - Telemedicine Link",
+          text: `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointmentId: ${appt._id}`,
+        });
+      }
+    }
 
-   await appt.save();
-   res.json(appt);
- } catch (e) {
-   console.error(e);
-   res.status(500).json({ message: "Server error" });
- }
+    await appt.save();
+    res.json(appt);
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.put("/:id/confirm-payment", requireAuth, async (req, res) => {
- try {
-   const appt = await Appointment.findById(req.params.id);
-   if (!appt) return res.status(404).json({ message: "Not found" });
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: "Not found" });
 
-   if (req.user.role === "PATIENT" && appt.patientId !== req.user.userId) {
-     return res.status(403).json({ message: "Forbidden" });
-   }
+    if (req.user.role === "PATIENT" && appt.patientId !== req.user.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
-   if (appt.status !== "ACCEPTED") {
-     return res.status(400).json({ message: "Appointment must be ACCEPTED first" });
-   }
+    if (appt.status !== "ACCEPTED") {
+      return res.status(400).json({ message: "Appointment must be ACCEPTED first" });
+    }
 
-   appt.paymentStatus = "PAID";
-   appt.status = "CONFIRMED";
-   await appt.save();
+    appt.paymentStatus = "PAID";
+    appt.status = "CONFIRMED";
+    await appt.save();
 
-   res.json({ ok: true, appointment: appt });
- } catch (e) {
-   res.status(500).json({ message: "Server error" });
- }
+    res.json({ ok: true, appointment: appt });
+  } catch (e) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res) => {
- try {
-   const appt = await Appointment.findById(req.params.id);
-   if (!appt) return res.status(404).json({ message: "Appointment not found" });
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-   if (appt.patientId !== req.user.userId) {
-     return res.status(403).json({ message: "Forbidden" });
-   }
+    if (appt.patientId !== req.user.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
-   if (["COMPLETED", "CANCELLED", "REJECTED"].includes(appt.status)) {
-     return res.status(400).json({ message: "Appointment cannot be cancelled now" });
-   }
+    if (["COMPLETED", "CANCELLED", "REJECTED"].includes(appt.status)) {
+      return res.status(400).json({ message: "Appointment cannot be cancelled now" });
+    }
 
-   appt.status = "CANCELLED";
-   await appt.save();
+    appt.status = "CANCELLED";
+    await appt.save();
 
-   if (appt.patientEmail) {
-     try {
-       await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-         to: appt.patientEmail,
-         subject: "Appointment Cancelled",
-         text: `Your appointment ${appt._id} has been cancelled.`,
-       });
-     } catch (notifyErr) {
-       console.error("Cancel email failed:", notifyErr.message);
-     }
-   }
+    if (appt.patientEmail) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+          to: appt.patientEmail,
+          subject: "Appointment Cancelled",
+          text: `Your appointment ${appt._id} has been cancelled.`,
+        });
+      } catch (notifyErr) {
+        console.error("Cancel email failed:", notifyErr.message);
+      }
+    }
 
-   res.json({ message: "Appointment cancelled", appointment: appt });
- } catch (e) {
-   res.status(500).json({ message: "Server error" });
- }
+    res.json({ message: "Appointment cancelled", appointment: appt });
+  } catch (e) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req, res) => {
@@ -254,33 +265,33 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
 });
 
 router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async (req, res) => {
- try {
-   const appt = await Appointment.findById(req.params.id);
-   if (!appt) return res.status(404).json({ message: "Appointment not found" });
+  try {
+    const appt = await Appointment.findById(req.params.id);
+    if (!appt) return res.status(404).json({ message: "Appointment not found" });
 
-   if (req.user.role === "DOCTOR" && appt.doctorId !== req.user.userId) {
-     return res.status(403).json({ message: "Forbidden" });
-   }
+    if (req.user.role === "DOCTOR" && appt.doctorId !== req.user.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
 
-   appt.status = "COMPLETED";
-   await appt.save();
+    appt.status = "COMPLETED";
+    await appt.save();
 
-   if (appt.patientEmail) {
-     try {
-       await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-         to: appt.patientEmail,
-         subject: "Consultation Completed",
-         text: `Your consultation for appointment ${appt._id} has been marked as COMPLETED.`,
-       });
-     } catch (notifyErr) {
-       console.error("Completion email failed:", notifyErr.message);
-     }
-   }
+    if (appt.patientEmail) {
+      try {
+        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+          to: appt.patientEmail,
+          subject: "Consultation Completed",
+          text: `Your consultation for appointment ${appt._id} has been marked as COMPLETED.`,
+        });
+      } catch (notifyErr) {
+        console.error("Completion email failed:", notifyErr.message);
+      }
+    }
 
-   res.json({ message: "Appointment completed", appointment: appt });
- } catch (e) {
-   res.status(500).json({ message: "Server error" });
- }
+    res.json({ message: "Appointment completed", appointment: appt });
+  } catch (e) {
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.get("/doctor/:doctorId/slots", requireAuth, async (req, res) => {

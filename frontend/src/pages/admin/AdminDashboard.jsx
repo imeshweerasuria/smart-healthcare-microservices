@@ -122,14 +122,32 @@ export default function AdminDashboard() {
             <span style={styles.navIcon}>📊</span>
             <span>Dashboard</span>
           </div>
+
+          <Link to="/admin/doctors" style={styles.navItem}>
+            <span style={styles.navIcon}>👨‍⚕️</span>
+            <span>Manage Doctors</span>
+          </Link>
+
+          <Link to="/admin/patients" style={styles.navItem}>
+            <span style={styles.navIcon}>👤</span>
+            <span>Manage Patients</span>
+          </Link>
+
           <Link to="/admin/appointments" style={styles.navItem}>
             <span style={styles.navIcon}>📅</span>
             <span>Appointments</span>
           </Link>
+
           <Link to="/admin/payments" style={styles.navItem}>
             <span style={styles.navIcon}>💰</span>
-            <span>Payments</span>
+            <span>Payment Summary</span>
           </Link>
+
+          <Link to="/admin/reports" style={styles.navItem}>
+            <span style={styles.navIcon}>📋</span>
+            <span>Reports</span>
+          </Link>
+
           <button onClick={logout} style={styles.logoutBtn}>
             <span style={styles.navIcon}>🚪</span>
             <span>Logout</span>
@@ -340,7 +358,11 @@ const styles = {
     minHeight: "100vh",
     backgroundColor: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-    // REMOVED: position: "absolute", top: 0, bottom: 0 etc to fix scrolling
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   sidebar: {
     width: "280px",
@@ -462,7 +484,8 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    // Removed overflowY: auto to allow natural body scrolling
+    overflowY: "auto",
+    height: "100vh",
   },
   content: {
     padding: "32px",
@@ -777,7 +800,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation - MODIFIED to fix global scrolling
+// Add keyframes animation
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes spin {
@@ -785,7 +808,22 @@ styleSheet.textContent = `
   }
   
   * {
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
+  }
+  
+  body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  #root {
+    width: 100%;
+    height: 100%;
   }
   
   input:focus {
@@ -797,6 +835,15 @@ styleSheet.textContent = `
   button:hover:not(:disabled) {
     transform: translateY(-1px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .nav-item:hover, .user-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  }
+  
+  a:hover {
+    background-color: #f8fafc;
   }
 `;
 
