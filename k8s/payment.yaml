@@ -30,12 +30,17 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: smart-secrets
-                  key: MONGO_URI
+                  key: MONGO_URI_PAYMENT
             - name: APPOINTMENT_URL
               valueFrom:
                 configMapKeyRef:
                   name: smart-config
                   key: APPOINTMENT_URL
+            - name: FRONTEND_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: FRONTEND_URL
 ---
 apiVersion: v1
 kind: Service

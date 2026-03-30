@@ -30,12 +30,23 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: smart-secrets
-                  key: MONGO_URI
+                  key: MONGO_URI_PATIENT   # ✅ fixed (separate DB like others)
             - name: DOCTOR_URL
               valueFrom:
                 configMapKeyRef:
                   name: smart-config
                   key: DOCTOR_URL
+            - name: APPOINTMENT_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: APPOINTMENT_URL   # ✅ added (commonly needed)
+            - name: NOTIFICATION_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: smart-config
+                  key: NOTIFICATION_URL  # ✅ added (if sending emails/alerts)
+
 ---
 apiVersion: v1
 kind: Service
