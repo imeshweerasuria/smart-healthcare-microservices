@@ -22,6 +22,7 @@ const AppointmentSchema = new mongoose.Schema(
    },
 
    patientEmail: { type: String, default: "" },
+   patientPhone: { type: String, default: "" },
  },
  { timestamps: true }
 );

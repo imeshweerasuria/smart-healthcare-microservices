@@ -1,10 +1,11 @@
 import axios from "axios";
 import { API } from "./client";
 
-export function saveSession({ token, role, email, name, userId }) {
+export function saveSession({ token, role, email, phone, name, userId }) {
  localStorage.setItem("token", token);
  localStorage.setItem("role", role);
  if (email) localStorage.setItem("email", email);
+ if (phone) localStorage.setItem("phone", phone);
  if (name) localStorage.setItem("name", name);
  if (userId) localStorage.setItem("userId", userId);
 }
@@ -13,6 +14,7 @@ export function clearSession() {
  localStorage.removeItem("token");
  localStorage.removeItem("role");
  localStorage.removeItem("email");
+ localStorage.removeItem("phone");
  localStorage.removeItem("name");
  localStorage.removeItem("userId");
 }
@@ -23,6 +25,10 @@ export function getRole() {
 
 export function getEmail() {
  return localStorage.getItem("email");
+}
+
+export function getPhone() {
+ return localStorage.getItem("phone");
 }
 
 export function getName() {
