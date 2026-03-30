@@ -485,6 +485,7 @@ const styles = {
   mainContent: {
     flex: 1,
     overflowY: "auto",
+    backgroundColor: "#f5f7fa",
     height: "100vh",
   },
   content: {
@@ -818,7 +819,7 @@ styleSheet.textContent = `
     padding: 0;
     width: 100%;
     height: 100%;
-    overflow: hidden;
+    overflow: auto;
   }
   
   #root {
