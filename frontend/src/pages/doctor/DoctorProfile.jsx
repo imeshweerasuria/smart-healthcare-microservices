@@ -88,6 +88,11 @@ export default function DoctorProfile() {
     "Surgery",
   ];
 
+  // Add any custom specialty if it exists but not in the list (so selected value is visible)
+  const allSpecialties = form.specialty && !specialties.includes(form.specialty)
+    ? [form.specialty, ...specialties]
+    : specialties;
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -142,7 +147,7 @@ export default function DoctorProfile() {
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor/dashboard" style={styles.navItem}>
+          <Link to="/doctor" style={styles.navItem}>
             <span style={styles.navIcon}>🏠</span>
             <span>Dashboard</span>
           </Link>
@@ -219,7 +224,7 @@ export default function DoctorProfile() {
                 required
               >
                 <option value="">Select your specialty</option>
-                {specialties.map((spec) => (
+                {allSpecialties.map((spec) => (
                   <option key={spec} value={spec}>
                     {spec}
                   </option>
@@ -299,7 +304,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",  // ADDED: Forces full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -413,8 +418,8 @@ const styles = {
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",  // ADDED: Takes full height
-    overflowY: "auto",  // ADDED: Enables scrolling within content
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
     display: "flex",
@@ -538,6 +543,7 @@ const styles = {
     transition: "all 0.2s ease",
     backgroundColor: "#ffffff",
     cursor: "pointer",
+    color: "#1a2c3e",        // Ensure text is visible
   },
   textarea: {
     width: "100%",
@@ -648,7 +654,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation
+// Add keyframes animation and option styling
 if (typeof document !== "undefined") {
   const styleSheet = document.createElement("style");
   styleSheet.textContent = `
@@ -679,6 +685,12 @@ if (typeof document !== "undefined") {
     
     .nav-item:hover {
       background-color: #f8fafc;
+    }
+    
+    /* Ensure select options are always visible */
+    select, option {
+      color: #1a2c3e;
+      background-color: #ffffff;
     }
   `;
   document.head.appendChild(styleSheet);
