@@ -1,4 +1,3 @@
-const cron = require("node-cron");
 const express = require("express");
 const axios = require("axios");
 
@@ -10,6 +9,175 @@ const router = express.Router();
 const TELEMEDICINE_URL = process.env.TELEMEDICINE_URL || "http://localhost:4005";
 const NOTIFICATION_URL = process.env.NOTIFICATION_URL || "http://localhost:4006";
 const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
+const AUTH_URL = process.env.AUTH_URL || "http://localhost:4001";
+
+// ---------------- HELPERS ----------------
+
+async function getUserContact(userId) {
+  // IMPORTANT:
+  // This assumes auth-service server uses: app.use("/auth", authRoutes)
+  // If your auth-service mount path is different, only change this one URL.
+  const res = await axios.get(`${AUTH_URL}/auth/users/${userId}/contact`);
+  return res.data;
+}
+
+async function safeGetUserContact(userId) {
+  try {
+    return await getUserContact(userId);
+  } catch (err) {
+    console.error(
+      `Failed to fetch user contact for ${userId}:`,
+      err.response?.data || err.message
+    );
+    return null;
+  }
+}
+
+async function sendEmailNotification(to, subject, text) {
+  if (!to) return;
+
+  try {
+    await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+      to,
+      subject,
+      text,
+    });
+  } catch (err) {
+    console.error(
+      `Email notify failed for ${to}:`,
+      err.response?.data || err.message
+    );
+  }
+}
+
+async function sendSmsNotification(to, body) {
+  if (!to) return;
+
+  try {
+    await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
+      to,
+      body,
+    });
+  } catch (err) {
+    console.error(
+      `SMS notify failed for ${to}:`,
+      err.response?.data || err.message
+    );
+  }
+}
+
+async function loadAppointmentContacts(appt) {
+  const [patientContact, doctorContact] = await Promise.all([
+    safeGetUserContact(appt.patientId),
+    safeGetUserContact(appt.doctorId),
+  ]);
+
+  return {
+    patientName: patientContact?.name || "Patient",
+    patientEmail: patientContact?.email || appt.patientEmail || "",
+    patientPhone: patientContact?.phone || appt.patientPhone || "",
+
+    doctorName: doctorContact?.name || "Doctor",
+    doctorEmail: doctorContact?.email || "",
+    doctorPhone: doctorContact?.phone || "",
+  };
+}
+
+async function notifyConfirmedToBoth(appt) {
+  const contacts = await loadAppointmentContacts(appt);
+
+  const patientEmailText = `Hello ${contacts.patientName},
+
+Your appointment has been CONFIRMED.
+
+Appointment ID: ${appt._id}
+Doctor ID: ${appt.doctorId}
+Slot Number: ${appt.slotNumber}
+Payment Status: ${appt.paymentStatus}
+Telemedicine Link: ${appt.telemedicineLink || "Not available"}
+
+Smart Healthcare`;
+
+  const patientSmsText = `Smart Healthcare: Your appointment ${appt._id} is CONFIRMED. Slot ${appt.slotNumber}.`;
+
+  const doctorEmailText = `Hello ${contacts.doctorName},
+
+A patient appointment is now CONFIRMED.
+
+Appointment ID: ${appt._id}
+Patient ID: ${appt.patientId}
+Slot Number: ${appt.slotNumber}
+Payment Status: ${appt.paymentStatus}
+Telemedicine Link: ${appt.telemedicineLink || "Not available"}
+
+Smart Healthcare`;
+
+  const doctorSmsText = `Smart Healthcare: Appointment ${appt._id} is CONFIRMED for slot ${appt.slotNumber}.`;
+
+  await Promise.all([
+    sendEmailNotification(
+      contacts.patientEmail,
+      "Appointment Confirmed",
+      patientEmailText
+    ),
+    sendSmsNotification(contacts.patientPhone, patientSmsText),
+
+    sendEmailNotification(
+      contacts.doctorEmail,
+      "Appointment Confirmed",
+      doctorEmailText
+    ),
+    sendSmsNotification(contacts.doctorPhone, doctorSmsText),
+  ]);
+}
+
+async function notifyCompletedToBoth(appt) {
+  const contacts = await loadAppointmentContacts(appt);
+
+  const patientEmailText = `Hello ${contacts.patientName},
+
+Your consultation has been marked as COMPLETED.
+
+Appointment ID: ${appt._id}
+Doctor ID: ${appt.doctorId}
+Slot Number: ${appt.slotNumber}
+Status: ${appt.status}
+
+Smart Healthcare`;
+
+  const patientSmsText = `Smart Healthcare: Your appointment ${appt._id} has been marked COMPLETED.`;
+
+  const doctorEmailText = `Hello ${contacts.doctorName},
+
+This consultation has been marked as COMPLETED.
+
+Appointment ID: ${appt._id}
+Patient ID: ${appt.patientId}
+Slot Number: ${appt.slotNumber}
+Status: ${appt.status}
+
+Smart Healthcare`;
+
+  const doctorSmsText = `Smart Healthcare: Appointment ${appt._id} has been marked COMPLETED.`;
+
+  await Promise.all([
+    sendEmailNotification(
+      contacts.patientEmail,
+      "Consultation Completed",
+      patientEmailText
+    ),
+    sendSmsNotification(contacts.patientPhone, patientSmsText),
+
+    sendEmailNotification(
+      contacts.doctorEmail,
+      "Consultation Completed",
+      doctorEmailText
+    ),
+    sendSmsNotification(contacts.doctorPhone, doctorSmsText),
+  ]);
+}
+
+// ---------------- ROUTES ----------------
 
 router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
@@ -52,26 +220,18 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
     });
 
     if (appt.patientEmail) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appt.patientEmail,
-          subject: "Appointment Request Created",
-          text: `Your appointment request has been created and is currently PENDING.\nAppointment ID: ${appt._id}`,
-        });
-      } catch (notifyErr) {
-        console.error("Booking email failed:", notifyErr.message);
-      }
+      await sendEmailNotification(
+        appt.patientEmail,
+        "Appointment Request Created",
+        `Your appointment request has been created and is currently PENDING.\nAppointment ID: ${appt._id}`
+      );
     }
 
     if (appt.patientPhone) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
-          to: appt.patientPhone,
-          body: `Smart Healthcare: Appointment request created. ID: ${appt._id}`,
-        });
-      } catch (notifyErr) {
-        console.error("Booking SMS failed:", notifyErr.message);
-      }
+      await sendSmsNotification(
+        appt.patientPhone,
+        `Smart Healthcare: Appointment request created. ID: ${appt._id}`
+      );
     }
 
     res.json(appt);
@@ -150,53 +310,53 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
       appt.telemedicineLink = tele.data.meetingUrl || "";
 
       if (appt.patientEmail) {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appt.patientEmail,
-          subject: "Appointment Accepted - Telemedicine Link",
-          text: `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointmentId: ${appt._id}`,
-        });
+        await sendEmailNotification(
+          appt.patientEmail,
+          "Appointment Accepted - Telemedicine Link",
+          `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointment ID: ${appt._id}`
+        );
       }
 
       if (appt.patientPhone) {
-        try {
-          await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
-            to: appt.patientPhone,
-            body: `Smart Healthcare: Appointment accepted. Check email for details.`,
-          });
-        } catch (notifyErr) {
-          console.error("Accepted SMS failed:", notifyErr.message);
-        }
+        await sendSmsNotification(
+          appt.patientPhone,
+          `Smart Healthcare: Appointment accepted. Check email for details.`
+        );
       }
     }
 
     await appt.save();
     res.json(appt);
   } catch (e) {
-    console.error(e);
+    console.error("Update status error:", e.response?.data || e.message || e);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-router.put("/:id/confirm-payment", requireAuth, async (req, res) => {
+router.put("/:id/confirm-payment", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
     const appt = await Appointment.findById(req.params.id);
     if (!appt) return res.status(404).json({ message: "Not found" });
 
-    if (req.user.role === "PATIENT" && appt.patientId !== req.user.userId) {
+    if (appt.patientId !== req.user.userId) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
-   if (appt.status === "CANCELLED" || appt.status === "REJECTED") {
-  return res.status(400).json({
-    message: "Cannot pay for cancelled or rejected appointment"
-  });
-}
+    if (appt.status !== "ACCEPTED") {
+      return res.status(400).json({ message: "Appointment must be ACCEPTED first" });
+    }
 
     appt.paymentStatus = "PAID";
-       await appt.save();
+    appt.status = "CONFIRMED";
+    await appt.save();
 
-    res.json({ ok: true, appointment: appt ,message: "Payment confirmed"});
+    // REQUIRED CASE 1:
+    // On CONFIRMED -> send SMS + Email to BOTH patient and doctor
+    await notifyConfirmedToBoth(appt);
+
+    res.json({ ok: true, appointment: appt });
   } catch (e) {
+    console.error("Confirm payment error:", e.response?.data || e.message || e);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -218,30 +378,23 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
     await appt.save();
 
     if (appt.patientEmail) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appt.patientEmail,
-          subject: "Appointment Cancelled",
-          text: `Your appointment ${appt._id} has been cancelled.`,
-        });
-      } catch (notifyErr) {
-        console.error("Cancel email failed:", notifyErr.message);
-      }
+      await sendEmailNotification(
+        appt.patientEmail,
+        "Appointment Cancelled",
+        `Your appointment ${appt._id} has been cancelled.`
+      );
     }
 
     if (appt.patientPhone) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
-          to: appt.patientPhone,
-          body: `Smart Healthcare: Appointment cancelled. ID: ${appt._id}`,
-        });
-      } catch (notifyErr) {
-        console.error("Cancel SMS failed:", notifyErr.message);
-      }
+      await sendSmsNotification(
+        appt.patientPhone,
+        `Smart Healthcare: Appointment cancelled. ID: ${appt._id}`
+      );
     }
 
     res.json({ message: "Appointment cancelled", appointment: appt });
   } catch (e) {
+    console.error("Cancel appointment error:", e.response?.data || e.message || e);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -283,30 +436,23 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
     await appt.save();
 
     if (appt.patientEmail) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appt.patientEmail,
-          subject: "Appointment Rescheduled",
-          text: `Your appointment ${appt._id} has been rescheduled to slot ${slotNumber}. Status reset to PENDING.`,
-        });
-      } catch (notifyErr) {
-        console.error("Reschedule email failed:", notifyErr.message);
-      }
+      await sendEmailNotification(
+        appt.patientEmail,
+        "Appointment Rescheduled",
+        `Your appointment ${appt._id} has been rescheduled to slot ${slotNumber}. Status reset to PENDING.`
+      );
     }
 
     if (appt.patientPhone) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
-          to: appt.patientPhone,
-          body: `Smart Healthcare: Appointment rescheduled. ID: ${appt._id}`,
-        });
-      } catch (notifyErr) {
-        console.error("Reschedule SMS failed:", notifyErr.message);
-      }
+      await sendSmsNotification(
+        appt.patientPhone,
+        `Smart Healthcare: Appointment rescheduled. ID: ${appt._id}`
+      );
     }
 
     res.json({ message: "Appointment rescheduled", appointment: appt });
   } catch (e) {
+    console.error("Reschedule appointment error:", e.response?.data || e.message || e);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -323,31 +469,13 @@ router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async
     appt.status = "COMPLETED";
     await appt.save();
 
-    if (appt.patientEmail) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appt.patientEmail,
-          subject: "Consultation Completed",
-          text: `Your consultation for appointment ${appt._id} has been marked as COMPLETED.`,
-        });
-      } catch (notifyErr) {
-        console.error("Completion email failed:", notifyErr.message);
-      }
-    }
-
-    if (appt.patientPhone) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/sms`, {
-          to: appt.patientPhone,
-          body: `Smart Healthcare: Consultation completed. ID: ${appt._id}`,
-        });
-      } catch (notifyErr) {
-        console.error("Completion SMS failed:", notifyErr.message);
-      }
-    }
+    // REQUIRED CASE 2:
+    // On COMPLETED -> send SMS + Email to BOTH patient and doctor
+    await notifyCompletedToBoth(appt);
 
     res.json({ message: "Appointment completed", appointment: appt });
   } catch (e) {
+    console.error("Complete appointment error:", e.response?.data || e.message || e);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -361,20 +489,19 @@ router.get("/doctor/:doctorId/slots", requireAuth, async (req, res) => {
       status: { $in: ["PENDING", "ACCEPTED", "CONFIRMED"] }
     }).select("slotNumber");
 
-    const slots = takenSlots.map(s => s.slotNumber);
+    const slots = takenSlots.map((s) => s.slotNumber);
 
     res.json({
       doctorId,
       takenSlots: slots
     });
-
   } catch (e) {
-    console.error(e);
+    console.error("Get doctor slots error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
 
-router.patch("/:id/reason", async (req, res) => {
+router.patch("/:id/reason", requireAuth, async (req, res) => {
   try {
     const { reason } = req.body;
 
@@ -386,52 +513,9 @@ router.patch("/:id/reason", async (req, res) => {
 
     res.json(appointment);
   } catch (err) {
+    console.error("Update reason error:", err.message);
     res.status(500).json({ message: "Update failed" });
   }
 });
-
-// Auto-cancel unpaid appointments after 5 minutes
-cron.schedule("* * * * *", async () => {
-  try {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
-    const result = await Appointment.updateMany(
-      {
-        status: "PENDING",
-        paymentStatus: "UNPAID",
-        createdAt: { $lte: fiveMinutesAgo },
-      },
-      { status: "CANCELLED" }
-    );
-
-    if (result.modifiedCount > 0) {
-      console.log(`Auto-cancelled ${result.modifiedCount} unpaid appointments`);
-
-      // Optional: send cancellation email for each appointment
-      const cancelledAppointments = await Appointment.find({
-        status: "CANCELLED",
-        paymentStatus: "UNPAID",
-        createdAt: { $lte: fiveMinutesAgo },
-      });
-
-      for (const appt of cancelledAppointments) {
-        if (appt.patientEmail) {
-          try {
-            await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-              to: appt.patientEmail,
-              subject: "Appointment Auto-Cancelled",
-              text: `Your appointment ${appt._id} was automatically cancelled because payment was not received within 5 minutes.`,
-            });
-          } catch (notifyErr) {
-            console.error("Auto-cancel email failed:", notifyErr.message);
-          }
-        }
-      }
-    }
-  } catch (err) {
-    console.error("Error in auto-cancel cron:", err);
-  }
-});
-
 
 module.exports = router;
