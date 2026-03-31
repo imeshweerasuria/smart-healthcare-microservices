@@ -81,12 +81,14 @@ export default function MyAppointments() {
     }
   };
 
-  const startStripeCheckout = async (appointmentId) => {
+  const startStripeCheckout = async (appointmentId, doctorProfession) => {
     setActionLoading(appointmentId, "pay", true);
     try {
+      const amount = doctorFees[doctorProfession] || 1000; // default if not found
+
       const res = await axios.post(
         `${API.payment}/payments/checkout-session`,
-        { appointmentId, amount: 1000 },
+        { appointmentId, amount },
         { headers: authHeaders() }
       );
 
@@ -124,6 +126,24 @@ export default function MyAppointments() {
       setActionLoading(appointmentId, "cancel", false);
     }
   };
+
+   const doctorFees = {
+      "Cardiology": 9000,
+      "Dermatology": 10000,
+      "Neurology": 7000,
+      "Pediatrics": 8000,
+      "Psychiatry": 5000,
+      "Orthopedics": 7000,
+      "Ophthalmology": 9000,
+      "Gynecology": 7000,
+      "Urology": 8000,
+      "General Medicine": 8000,
+      "Family Medicine": 5000,
+      "Emergency Medicine": 7000,
+      "Radiology": 7000,
+      "Anesthesiology": 8000,
+      "Surgery": 9000,
+    };
 
   const navItems = [
     { path: "/patient/profile", label: "My Profile", icon: "👤" },
@@ -355,6 +375,8 @@ const refundAppointment = async (a) => {
         ) : (
           <div style={styles.appointmentsGrid}>
             {list.map((a) => {
+                console.log(a.paymentStatus); // <-- add this line here
+
               const statusStyle = getStatusBadgeStyle(a.status);
               const paymentStyle = getPaymentStatusStyle(a.paymentStatus);
 
@@ -469,7 +491,7 @@ const refundAppointment = async (a) => {
 
 {a.status !== "CANCELLED" && a.paymentStatus !== "PAID" && a.paymentStatus !== "REFUNDED" && (
   <button
-    onClick={() => startStripeCheckout(a._id)}
+    onClick={() => startStripeCheckout(a._id, a.doctorProfession)}
     style={styles.payBtn}
     disabled={loadingMap[a._id]?.pay}
   >
