@@ -194,6 +194,26 @@ export default function BrowseDoctors() {
               <p style={styles.emptySubtext}>Try searching by specialty name or doctor ID</p>
             </div>
           ) : (
+            <>
+              <div style={styles.doctorsGrid}>
+                {doctors.map((d) => (
+                  <div 
+                    key={d._id} 
+                    style={{
+                      ...styles.doctorCard,
+                      ...(hoveredCard === d._id ? styles.doctorCardHover : {})
+                    }}
+                    onMouseEnter={() => setHoveredCard(d._id)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    className="doctor-card"
+                  >
+                    <div style={styles.doctorHeader}>
+                      <div style={styles.doctorAvatar}>
+                        {d.specialty?.charAt(0) || "D"}
+                      </div>
+                      <div style={styles.doctorHeaderInfo}>
+                        <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
+                        <div style={styles.doctorId}>ID: {d.userId?.slice(-6) || "N/A"}</div>
             <div style={styles.doctorsGrid}>
               {doctors.map((d) => (
                 <div 
@@ -228,44 +248,51 @@ export default function BrowseDoctors() {
                         </button>
                       </div>
                     </div>
-                  </div>
 
-                  <div style={styles.doctorBio}>
-                    <p>{d.bio || "Experienced healthcare professional dedicated to your well-being."}</p>
-                  </div>
-
-                  <div style={styles.availabilitySection}>
-                    <div style={styles.availabilityTitle}>
-                      <span>📅</span>
-                      <span>Availability</span>
+                    <div style={styles.doctorBio}>
+                      <p>{d.bio || "Experienced healthcare professional dedicated to your well-being."}</p>
                     </div>
-                    {d.availability?.length ? (
-                      <div style={styles.slotsContainer}>
-                        {d.availability.slice(0, 3).map((slot, idx) => (
-                          <div key={idx} style={styles.slot}>
-                            <span style={styles.slotDay}>{slot.day}</span>
-                            <span style={styles.slotTime}>{slot.from} - {slot.to}</span>
-                          </div>
-                        ))}
-                        {d.availability.length > 3 && (
-                          <div style={styles.moreSlots}>+{d.availability.length - 3} more slots</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={styles.noAvailability}>No availability added yet</div>
-                    )}
-                  </div>
 
-                  <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Book Appointment
-                  </Link>
+                    <div style={styles.availabilitySection}>
+                      <div style={styles.availabilityTitle}>
+                        <span>📅</span>
+                        <span>Availability</span>
+                      </div>
+                      {d.availability?.length ? (
+                        <div style={styles.slotsContainer}>
+                          {d.availability.slice(0, 3).map((slot, idx) => (
+                            <div key={idx} style={styles.slot}>
+                              <span style={styles.slotDay}>{slot.day}</span>
+                              <span style={styles.slotTime}>{slot.from} - {slot.to}</span>
+                            </div>
+                          ))}
+                          {d.availability.length > 3 && (
+                            <div style={styles.moreSlots}>+{d.availability.length - 3} more slots</div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={styles.noAvailability}>No availability added yet</div>
+                      )}
+                    </div>
+
+                    <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      </svg>
+                      Book Appointment
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer Stats */}
+              {doctors.length > 0 && (
+                <div style={styles.footerStats}>
+                  Showing {doctors.length} doctor{doctors.length !== 1 ? 's' : ''} available
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -284,6 +311,26 @@ export default function BrowseDoctors() {
             opacity: 1;
             transform: translateY(0);
           }
+        }
+        
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+        
+        #root {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
         }
         
         .doctor-card {
@@ -357,10 +404,12 @@ export default function BrowseDoctors() {
 const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh",
     width: "100%",
+    height: "100vh",
+    background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
     backgroundColor: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    overflow: "hidden",
   },
   sidebar: {
     width: "280px",
@@ -369,12 +418,9 @@ const styles = {
     borderRight: "1px solid rgba(0, 0, 0, 0.05)",
     display: "flex",
     flexDirection: "column",
-    position: "fixed",
-    top: 0,
-    left: 0,
     height: "100vh",
     overflowY: "auto",
-    zIndex: 100,
+    flexShrink: 0,
   },
   sidebarHeader: {
     padding: "32px 24px",
@@ -483,7 +529,8 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    marginLeft: "280px",
+    overflowY: "auto",
+    height: "100vh",
     padding: "40px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
@@ -493,6 +540,7 @@ const styles = {
     maxWidth: "1400px",
     width: "100%",
     margin: "0 auto",
+    paddingBottom: "40px",
   },
   header: {
     display: "flex",
@@ -790,6 +838,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "80px 20px",
+    backgroundColor: "#ffffff",
+    borderRadius: "24px",
   },
   spinner: {
     width: "40px",
@@ -823,5 +873,12 @@ const styles = {
   emptySubtext: {
     fontSize: "14px",
     color: "#5e7a93",
+  },
+  footerStats: {
+    marginTop: "24px",
+    textAlign: "center",
+    fontSize: "13px",
+    color: "#5e7a93",
+    padding: "20px",
   },
 };
