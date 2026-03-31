@@ -80,7 +80,7 @@ export default function PatientReports() {
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor/dashboard" style={styles.navItem}>
+          <Link to="/doctor" style={styles.navItem}>
             <span style={styles.navIcon}>🏠</span>
             <span>Dashboard</span>
           </Link>
@@ -593,11 +593,11 @@ const styles = {
   sectionIcon: {
     fontSize: "16px",
   },
-  sectionTitle: {
+  /*sectionTitle: {
     fontSize: "14px",
     fontWeight: "600",
     color: "#1a2c3e",
-  },
+  },*/
   sectionContent: {
     backgroundColor: "#f8fafc",
     padding: "16px",

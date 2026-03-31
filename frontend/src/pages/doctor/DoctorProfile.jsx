@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
+import { clearSession } from "../../api/auth";
 
 export default function DoctorProfile() {
+  const navigate = useNavigate();
   const [form, setForm] = useState({
     specialty: "",
     bio: "",
@@ -15,6 +17,11 @@ export default function DoctorProfile() {
     email: "",
     doctorVerified: false,
   });
+
+  const logout = () => {
+    clearSession();
+    navigate("/login");
+  };
 
   const load = async () => {
     try {
@@ -88,6 +95,20 @@ export default function DoctorProfile() {
     "Surgery",
   ];
 
+  // Add any custom specialty if it exists but not in the list (so selected value is visible)
+  const allSpecialties = form.specialty && !specialties.includes(form.specialty)
+    ? [form.specialty, ...specialties]
+    : specialties;
+
+  const navItems = [
+    { path: "/doctor", label: "Dashboard", icon: "🏠" },
+    { path: "/doctor/profile", label: "My Profile", icon: "👤", active: true },
+    { path: "/doctor/availability", label: "My Availability", icon: "📅" },
+    { path: "/doctor/appointments", label: "Appointment Requests", icon: "📋" },
+    { path: "/doctor/patient-reports", label: "View Patient Reports", icon: "📊" },
+    { path: "/doctor/prescriptions", label: "My Issued Prescriptions", icon: "💊" },
+  ];
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -103,6 +124,30 @@ export default function DoctorProfile() {
                 Medi<span style={styles.logoSpan}>Book</span>
               </div>
             </div>
+            <div style={styles.userInfo}>
+              <div style={styles.userAvatar}>{doctorInfo.name?.charAt(0) || "D"}</div>
+              <div>
+                <div style={styles.userName}>{doctorInfo.name || "Doctor"}</div>
+                <div style={styles.userRole}>Loading...</div>
+              </div>
+            </div>
+          </div>
+          <div style={styles.sidebarNav}>
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                to={item.path}
+                style={item.active ? styles.navItemActive : styles.navItem}
+                className="nav-item"
+              >
+                <span style={styles.navIcon}>{item.icon}</span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+            <button onClick={logout} style={styles.logoutBtn}>
+              <span style={styles.navIcon}>🚪</span>
+              <span>Logout</span>
+            </button>
           </div>
         </div>
         <div style={styles.mainContent}>
@@ -142,30 +187,21 @@ export default function DoctorProfile() {
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor/dashboard" style={styles.navItem}>
-            <span style={styles.navIcon}>🏠</span>
-            <span>Dashboard</span>
-          </Link>
-          <div style={styles.navItemActive}>
-            <span style={styles.navIcon}>👤</span>
-            <span>My Profile</span>
-          </div>
-          <Link to="/doctor/availability" style={styles.navItem}>
-            <span style={styles.navIcon}>📅</span>
-            <span>My Availability</span>
-          </Link>
-          <Link to="/doctor/appointments" style={styles.navItem}>
-            <span style={styles.navIcon}>📋</span>
-            <span>Appointment Requests</span>
-          </Link>
-          <Link to="/doctor/patient-reports" style={styles.navItem}>
-            <span style={styles.navIcon}>📊</span>
-            <span>View Patient Reports</span>
-          </Link>
-          <Link to="/doctor/prescriptions" style={styles.navItem}>
-            <span style={styles.navIcon}>💊</span>
-            <span>My Issued Prescriptions</span>
-          </Link>
+          {navItems.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              style={item.active ? styles.navItemActive : styles.navItem}
+              className="nav-item"
+            >
+              <span style={styles.navIcon}>{item.icon}</span>
+              <span>{item.label}</span>
+            </Link>
+          ))}
+          <button onClick={logout} style={styles.logoutBtn}>
+            <span style={styles.navIcon}>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -219,7 +255,7 @@ export default function DoctorProfile() {
                 required
               >
                 <option value="">Select your specialty</option>
-                {specialties.map((spec) => (
+                {allSpecialties.map((spec) => (
                   <option key={spec} value={spec}>
                     {spec}
                   </option>
@@ -299,10 +335,11 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",  // ADDED: Forces full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    overflow: "hidden",
   },
   sidebar: {
     width: "280px",
@@ -388,7 +425,6 @@ const styles = {
     borderRadius: "12px",
     color: "#5e7a93",
     textDecoration: "none",
-    transition: "all 0.2s ease",
     fontSize: "14px",
     fontWeight: "500",
   },
@@ -407,22 +443,32 @@ const styles = {
   navIcon: {
     fontSize: "18px",
   },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#d32f2f",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    fontFamily: "inherit",
+    marginTop: "auto",
+  },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",  // ADDED: Takes full height
-    overflowY: "auto",  // ADDED: Enables scrolling within content
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
     marginBottom: "32px",
-    flexWrap: "wrap",
-    gap: "16px",
   },
   title: {
     fontSize: "32px",
@@ -538,6 +584,7 @@ const styles = {
     transition: "all 0.2s ease",
     backgroundColor: "#ffffff",
     cursor: "pointer",
+    color: "#1a2c3e",
   },
   textarea: {
     width: "100%",
@@ -648,7 +695,7 @@ const styles = {
   },
 };
 
-// Add keyframes animation
+// Add keyframes animation and option styling
 if (typeof document !== "undefined") {
   const styleSheet = document.createElement("style");
   styleSheet.textContent = `
@@ -662,23 +709,25 @@ if (typeof document !== "undefined") {
       outline: none;
     }
     
-    button:hover:not(:disabled), .save-btn:hover:not(:disabled) {
+    button:hover:not(:disabled) {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     
-    .save-btn:hover:not(:disabled) {
-      background-color: #155a4b;
-      box-shadow: 0 4px 12px rgba(30, 111, 92, 0.3);
-    }
-    
-    .cancel-btn:hover:not(:disabled) {
-      background-color: #f8fafc;
-      border-color: #cbd5e1;
-    }
-    
     .nav-item:hover {
       background-color: #f8fafc;
+      transform: translateX(4px);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
+    }
+    
+    /* Ensure select options are always visible */
+    select, option {
+      color: #1a2c3e;
+      background-color: #ffffff;
     }
   `;
   document.head.appendChild(styleSheet);

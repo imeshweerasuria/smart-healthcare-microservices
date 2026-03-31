@@ -112,7 +112,7 @@ export default function AdminAppointments() {
   };
 
   const navItems = [
-    { path: "/admin", label: "Dashboard", icon: "📊" },
+    { path: "/admin/dashboard", label: "Dashboard", icon: "📊" },
     { path: "/admin/doctors", label: "Manage Doctors", icon: "👨‍⚕️" },
     { path: "/admin/patients", label: "Manage Patients", icon: "👤" },
     { path: "/admin/appointments", label: "Appointments", icon: "📅", active: true },

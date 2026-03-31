@@ -7,7 +7,7 @@ import { clearSession, getName } from "../../api/auth";
 export default function BrowseDoctors() {
   const navigate = useNavigate();
   const [doctors, setDoctors] = useState([]);
-  const [specialty, setSpecialty] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
   const [hoveredCard, setHoveredCard] = useState(null);
 
@@ -16,15 +16,29 @@ export default function BrowseDoctors() {
     navigate("/login");
   };
 
-  const load = async (specialtyValue = "") => {
+  const load = async (searchValue = "") => {
     try {
       setLoading(true);
-      const url = specialtyValue
-        ? `${API.doctor}/doctors?specialty=${encodeURIComponent(specialtyValue)}`
-        : `${API.doctor}/doctors`;
-
-      const res = await axios.get(url);
-      setDoctors(res.data);
+      
+      // If search value is empty, load all doctors
+      if (!searchValue.trim()) {
+        const res = await axios.get(`${API.doctor}/doctors`);
+        setDoctors(res.data);
+      } else {
+        // First, try to load all doctors and filter by specialty or ID
+        const res = await axios.get(`${API.doctor}/doctors`);
+        const allDoctors = res.data;
+        
+        // Filter by specialty OR userId (doctor ID)
+        const filteredDoctors = allDoctors.filter(doctor => {
+          const searchLower = searchValue.toLowerCase().trim();
+          const specialtyMatch = doctor.specialty?.toLowerCase().includes(searchLower);
+          const idMatch = doctor.userId?.toLowerCase().includes(searchLower);
+          return specialtyMatch || idMatch;
+        });
+        
+        setDoctors(filteredDoctors);
+      }
     } catch (err) {
       console.error(err);
       alert("Failed to load doctors");
@@ -122,23 +136,23 @@ export default function BrowseDoctors() {
               <div style={styles.searchInputWrapper}>
                 <input
                   type="text"
-                  value={specialty}
-                  onChange={(e) => setSpecialty(e.target.value)}
-                  placeholder="Search by specialty (e.g., Cardiologist)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by specialty (e.g., Cardiologist) or Doctor ID"
                   style={styles.searchInput}
-                  onKeyPress={(e) => e.key === 'Enter' && load(specialty)}
+                  onKeyPress={(e) => e.key === 'Enter' && load(searchTerm)}
                   className="search-input"
                 />
               </div>
               <div style={styles.searchButtons}>
-                <button onClick={() => load(specialty)} style={styles.searchBtn} className="primary-btn">
+                <button onClick={() => load(searchTerm)} style={styles.searchBtn} className="primary-btn">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2"/>
                   </svg>
                   Search
                 </button>
                 <button 
-                  onClick={() => { setSpecialty(""); load(""); }} 
+                  onClick={() => { setSearchTerm(""); load(""); }} 
                   style={styles.clearBtn}
                   className="secondary-btn"
                 >
@@ -152,13 +166,18 @@ export default function BrowseDoctors() {
               {specialties.map((spec) => (
                 <button
                   key={spec}
-                  onClick={() => { setSpecialty(spec); load(spec); }}
-                  style={specialty === spec ? styles.chipActive : styles.chip}
+                  onClick={() => { setSearchTerm(spec); load(spec); }}
+                  style={searchTerm === spec ? styles.chipActive : styles.chip}
                   className="chip"
                 >
                   {spec}
                 </button>
               ))}
+            </div>
+            
+            <div style={styles.searchHint}>
+              <span style={styles.hintIcon}>💡</span>
+              <span style={styles.hintText}>Tip: You can search by Doctor ID (e.g., {doctors[0]?.userId?.slice(-6) || "123456"}) or Specialty name</span>
             </div>
           </div>
 
@@ -172,7 +191,7 @@ export default function BrowseDoctors() {
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>👨‍⚕️</div>
               <p style={styles.emptyText}>No doctors found</p>
-              <p style={styles.emptySubtext}>Try adjusting your search criteria</p>
+              <p style={styles.emptySubtext}>Try searching by specialty name or doctor ID</p>
             </div>
           ) : (
             <>
@@ -195,6 +214,38 @@ export default function BrowseDoctors() {
                       <div style={styles.doctorHeaderInfo}>
                         <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
                         <div style={styles.doctorId}>ID: {d.userId?.slice(-6) || "N/A"}</div>
+            <div style={styles.doctorsGrid}>
+              {doctors.map((d) => (
+                <div 
+                  key={d._id} 
+                  style={{
+                    ...styles.doctorCard,
+                    ...(hoveredCard === d._id ? styles.doctorCardHover : {})
+                  }}
+                  onMouseEnter={() => setHoveredCard(d._id)}
+                  onMouseLeave={() => setHoveredCard(null)}
+                  className="doctor-card"
+                >
+                  <div style={styles.doctorHeader}>
+                    <div style={styles.doctorAvatar}>
+                      {d.specialty?.charAt(0) || "D"}
+                    </div>
+                    <div style={styles.doctorHeaderInfo}>
+                      <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
+                      <div style={styles.doctorId}>
+                        <span style={styles.idLabel}>ID: </span>
+                        <span style={styles.idValue}>{d.userId || "N/A"}</span>
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            navigator.clipboard.writeText(d.userId);
+                            alert("Doctor ID copied to clipboard!");
+                          }}
+                          style={styles.copyBtn}
+                          title="Copy Doctor ID"
+                        >
+                          📋
+                        </button>
                       </div>
                     </div>
 
@@ -356,6 +407,7 @@ const styles = {
     width: "100%",
     height: "100vh",
     background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
+    backgroundColor: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
     overflow: "hidden",
   },
@@ -480,6 +532,9 @@ const styles = {
     overflowY: "auto",
     height: "100vh",
     padding: "40px",
+    width: "calc(100% - 280px)",
+    minHeight: "100vh",
+    backgroundColor: "#f5f7fa",
   },
   contentWrapper: {
     maxWidth: "1400px",
@@ -618,6 +673,23 @@ const styles = {
     cursor: "pointer",
     fontFamily: "inherit",
   },
+  searchHint: {
+    marginTop: "16px",
+    padding: "12px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "12px",
+    color: "#5e7a93",
+  },
+  hintIcon: {
+    fontSize: "14px",
+  },
+  hintText: {
+    fontSize: "12px",
+  },
   doctorsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
@@ -665,6 +737,29 @@ const styles = {
   doctorId: {
     fontSize: "12px",
     color: "#5e7a93",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexWrap: "wrap",
+  },
+  idLabel: {
+    fontWeight: "500",
+  },
+  idValue: {
+    fontFamily: "monospace",
+    fontSize: "11px",
+    backgroundColor: "#f5f7fa",
+    padding: "2px 6px",
+    borderRadius: "4px",
+  },
+  copyBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: "12px",
+    padding: "2px 4px",
+    borderRadius: "4px",
+    transition: "all 0.2s ease",
   },
   doctorBio: {
     padding: "20px 24px",

@@ -26,6 +26,8 @@ export default function MyPayments() {
       case "failed":
       case "cancelled":
         return { bg: "#ffebee", color: "#c62828" };
+      case "refunded":
+        return { bg: "#e0f7fa", color: "#006064" };
       default:
         return { bg: "#f5f5f5", color: "#757575" };
     }
@@ -38,6 +40,16 @@ export default function MyPayments() {
       currency: currency || 'USD',
     }).format(amount);
   };
+
+  // Calculate totals
+  const totalSpent = list.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalRefunded = list.reduce((sum, p) => {
+    if (p.status?.toLowerCase() === "refunded") {
+      return sum + (p.amount || 0);
+    }
+    return sum;
+  }, 0);
+  const netTotal = totalSpent - totalRefunded;
 
   return (
     <div style={styles.container}>
@@ -69,10 +81,21 @@ export default function MyPayments() {
               <div>
                 <div style={styles.summaryTitle}>Total Spent</div>
                 <div style={styles.summaryValue}>
-                  {formatCurrency(
-                    list.reduce((sum, p) => sum + (p.amount || 0), 0),
-                    list[0]?.currency || "USD"
-                  )}
+                  {formatCurrency(totalSpent, list[0]?.currency || "USD")}
+                </div>
+              </div>
+              <div style={styles.summaryDivider} />
+              <div>
+                <div style={styles.summaryTitle}>Total Refunded</div>
+                <div style={{ ...styles.summaryValue, color: "#006064" }}>
+                  {formatCurrency(totalRefunded, list[0]?.currency || "USD")}
+                </div>
+              </div>
+              <div style={styles.summaryDivider} />
+              <div>
+                <div style={styles.summaryTitle}>Net Total</div>
+                <div style={{ ...styles.summaryValue, color: "#1e6f5c" }}>
+                  {formatCurrency(netTotal, list[0]?.currency || "USD")}
                 </div>
               </div>
             </div>
@@ -80,11 +103,13 @@ export default function MyPayments() {
             <div style={styles.paymentsGrid}>
               {list.map((p) => {
                 const statusStyle = getStatusStyle(p.status);
+                const isRefunded = p.status?.toLowerCase() === "refunded";
+                
                 return (
                   <div key={p._id} style={styles.paymentCard}>
                     <div style={styles.cardHeader}>
                       <div style={styles.paymentIcon}>
-                        {p.provider === "stripe" ? "💳" : "🏦"}
+                        {isRefunded ? "↩️" : (p.provider === "stripe" ? "💳" : "🏦")}
                       </div>
                       <div style={{ ...styles.statusBadge, backgroundColor: statusStyle.bg, color: statusStyle.color }}>
                         {p.status}
@@ -93,7 +118,11 @@ export default function MyPayments() {
                     <div style={styles.cardBody}>
                       <div style={styles.amountRow}>
                         <span style={styles.amountLabel}>Amount</span>
-                        <span style={styles.amountValue}>
+                        <span style={{ 
+                          ...styles.amountValue, 
+                          color: isRefunded ? "#006064" : "#1e6f5c",
+                          textDecoration: isRefunded ? "line-through" : "none"
+                        }}>
                           {formatCurrency(p.amount, p.currency)}
                         </span>
                       </div>

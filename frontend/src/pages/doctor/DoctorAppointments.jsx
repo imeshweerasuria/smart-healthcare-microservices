@@ -8,6 +8,11 @@ export default function DoctorAppointments() {
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
 
+  // Helper function to check if payment is paid (case-insensitive)
+  const isPaid = (status) => {
+    return status && status.toUpperCase() === "PAID";
+  };
+
   const load = async () => {
     try {
       setLoading(true);
@@ -69,7 +74,8 @@ export default function DoctorAppointments() {
   };
 
   const getPaymentStatusColor = (status) => {
-    switch(status) {
+    const upperStatus = status?.toUpperCase();
+    switch(upperStatus) {
       case "PAID": return { bg: "#e8f5e9", color: "#2e7d32" };
       case "PENDING": return { bg: "#fff3e0", color: "#ed6c02" };
       case "FAILED": return { bg: "#ffebee", color: "#c62828" };
@@ -115,7 +121,7 @@ export default function DoctorAppointments() {
         </div>
         
         <div style={styles.sidebarNav}>
-          <Link to="/doctor/dashboard" style={styles.navItem}>
+          <Link to="/doctor" style={styles.navItem}>
             <span style={styles.navIcon}>🏠</span>
             <span>Dashboard</span>
           </Link>
@@ -293,11 +299,12 @@ export default function DoctorAppointments() {
                     <div style={styles.infoRow}>
                       <span style={styles.infoLabel}>Payment Status:</span>
                       <span style={{...styles.paymentBadge, backgroundColor: paymentStyle.bg, color: paymentStyle.color}}>
-                        {a.paymentStatus || "PENDING"}
+                        {a.paymentStatus ? a.paymentStatus.toUpperCase() : "PENDING"}
                       </span>
                     </div>
                     
-                    {a.telemedicineLink && (
+                    {a.telemedicineLink && !["COMPLETED", "REJECTED"].includes(a.status) && (
+
                       <div style={styles.telemedicineSection}>
                         <span style={styles.infoLabel}>Telemedicine Link:</span>
                         <a 
@@ -312,43 +319,27 @@ export default function DoctorAppointments() {
                     )}
                   </div>
 
-                  <div style={styles.cardActions}>
-                    <Link 
-                      to={`/doctor/prescribe/${a.patientId}`} 
-                      style={styles.prescribeBtn}
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 4v16M4 12h16"/>
-                      </svg>
-                      Issue Prescription
-                    </Link>
-                    
-                    {a.status === "PENDING" && (
-                      <div style={styles.actionButtons}>
-                        <button 
-                          onClick={() => updateStatus(a._id, "ACCEPTED")} 
-                          style={styles.acceptBtn}
-                        >
-                          ✓ Accept
-                        </button>
-                        <button 
-                          onClick={() => updateStatus(a._id, "REJECTED")} 
-                          style={styles.rejectBtn}
-                        >
-                          ✗ Reject
-                        </button>
-                      </div>
-                    )}
+<div style={styles.cardActions}>
+  {/* Issue Prescription + Complete only for ACCEPTED */}
+  {a.status === "ACCEPTED" && (
+    <>
+      <Link to={`/doctor/prescribe/${a.patientId}`} style={styles.prescribeBtn}>
+        Issue Prescription
+      </Link>
+      <button onClick={() => completeAppointment(a._id)} style={styles.completeBtn}>
+        ✓ Mark Completed
+      </button>
+    </>
+  )}
 
-                    {a.status === "CONFIRMED" && (
-                      <button 
-                        onClick={() => completeAppointment(a._id)} 
-                        style={styles.completeBtn}
-                      >
-                        ✓ Mark Completed
-                      </button>
-                    )}
-                  </div>
+  {/* Accept/Reject only for PENDING + PAID */}
+  {a.status === "PENDING" && isPaid(a.paymentStatus) && (
+    <div style={styles.actionButtons}>
+      <button onClick={() => updateStatus(a._id, "ACCEPTED")} style={styles.acceptBtn}>✓ Accept</button>
+      <button onClick={() => updateStatus(a._id, "REJECTED")} style={styles.rejectBtn}>✗ Reject</button>
+    </div>
+  )}
+</div>
                 </div>
               );
             })}

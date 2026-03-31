@@ -14,6 +14,7 @@ export default function BookAppointment() {
   const [loading, setLoading] = useState(false);
   const [loadingDoctor, setLoadingDoctor] = useState(true);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const [takenSlots, setTakenSlots] = useState([]); // Added state for taken slots
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -27,30 +28,35 @@ export default function BookAppointment() {
     navigate("/login");
   };
 
+  // Updated useEffect to fetch both doctor and taken slots
   useEffect(() => {
-    axios
-      .get(`${API.doctor}/doctors/${doctorId}`)
-      .then((res) => {
-        setDoctor(res.data);
+    const loadDoctor = async () => {
+      try {
+        const doctorRes = await axios.get(`${API.doctor}/doctors/${doctorId}`);
+        setDoctor(doctorRes.data);
+
+        const slotsRes = await axios.get(
+          `${API.appointment}/appointments/doctor/${doctorId}/slots`,
+          { headers: authHeaders() }
+        );
+
+        setTakenSlots(slotsRes.data.takenSlots || []);
+
         setLoadingDoctor(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error(err);
         showToast("Failed to load doctor details", "error");
         setLoadingDoctor(false);
-      });
+      }
+    };
+
+    loadDoctor();
   }, [doctorId]);
 
   const book = async () => {
     try {
       if (!datetime) {
-        showToast("Please select a date and time first", "error");
-        return;
-      }
-
-      const selected = new Date(datetime);
-      if (selected <= new Date()) {
-        showToast("Please choose a future date and time", "error");
+        showToast("Please select a slot first", "error");
         return;
       }
 
@@ -58,17 +64,22 @@ export default function BookAppointment() {
 
       await axios.post(
         `${API.appointment}/appointments`,
-        { doctorId, datetime: selected.toISOString(), reason },
+        { doctorId, slotNumber: datetime, reason },
         { headers: authHeaders() }
       );
 
       showToast("Appointment booked successfully!", "success");
+
       setTimeout(() => {
         navigate("/patient/appointments");
       }, 1500);
+
     } catch (e) {
       console.error(e);
-      showToast(e.response?.data?.message || "Booking failed. Please try again.", "error");
+      showToast(
+        e.response?.data?.message || "Booking failed. Please try again.",
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -249,17 +260,42 @@ export default function BookAppointment() {
           
           <div style={styles.formGroup}>
             <label style={styles.label}>
-              <span style={styles.labelIcon}>📅</span>
-              Date & Time
+              <span style={styles.labelIcon}>🎯</span>
+              Select Slot
             </label>
-            <input
-              type="datetime-local"
-              value={datetime}
-              onChange={(e) => setDatetime(e.target.value)}
-              min={getMinDateTime()}
-              style={styles.input}
-            />
-            <p style={styles.helperText}>Please select a future date and time</p>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((slotNumber) => {
+                const isTaken = takenSlots.includes(slotNumber);
+                
+                return (
+                  <button
+                    key={slotNumber}
+                    type="button"
+                    disabled={isTaken}
+                    onClick={() => setDatetime(slotNumber)}
+                    style={{
+                      padding: "10px 16px",
+                      borderRadius: "12px",
+                      border:
+                        datetime === slotNumber
+                          ? "2px solid #1e6f5c"
+                          : "1.5px solid #e2e8f0",
+                      backgroundColor: isTaken
+                        ? "#f5f5f5"
+                        : datetime === slotNumber
+                        ? "#e8f5e9"
+                        : "#f8fafc",
+                      cursor: isTaken ? "not-allowed" : "pointer",
+                      fontWeight: "600",
+                      color: isTaken ? "#9aaebf" : "#1a2c3e",
+                      opacity: isTaken ? 0.6 : 1,
+                    }}
+                  >
+                    {isTaken ? `Slot ${slotNumber} (Booked)` : `Slot ${slotNumber}`}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div style={styles.formGroup}>

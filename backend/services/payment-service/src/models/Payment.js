@@ -8,7 +8,7 @@ const PaymentSchema = new mongoose.Schema(
    currency: { type: String, default: "usd" },
    status: {
      type: String,
-     enum: ["PENDING", "PAID", "FAILED"],
+     enum: ["PENDING", "PAID", "FAILED" , "REFUNDED"],
      default: "PENDING",
    },
    provider: { type: String, default: "STRIPE_TEST" },
