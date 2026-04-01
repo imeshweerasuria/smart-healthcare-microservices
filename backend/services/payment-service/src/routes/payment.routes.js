@@ -8,21 +8,21 @@ const { requireAuth, requireRole } = require("../../../../shared/middleware/auth
 const router = express.Router();
 
 const doctorFees = {
-  "Cardiology": 900,
-  "Dermatology": 1000,
-  "Neurology": 700,
-  "Pediatrics": 800,
-  "Psychiatry": 500,
-  "Orthopedics": 700,
-  "Ophthalmology": 900,
-  "Gynecology": 700,
-  "Urology": 800,
-  "General Medicine": 800,
-  "Family Medicine": 500,
-  "Emergency Medicine": 700,
-  "Radiology": 700,
-  "Anesthesiology": 800,
-  "Surgery": 900,
+  "Cardiology": 9000,
+  "Dermatology": 10000,
+  "Neurology": 7000,
+  "Pediatrics": 8000,
+  "Psychiatry": 5000,
+  "Orthopedics": 7000,
+  "Ophthalmology": 9000,
+  "Gynecology": 7000,
+  "Urology": 8000,
+  "General Medicine": 8000,
+  "Family Medicine": 5000,
+  "Emergency Medicine": 7000,
+  "Radiology": 7000,
+  "Anesthesiology": 8000,
+  "Surgery": 9000,
 };
 
 const APPOINTMENT_URL = process.env.APPOINTMENT_URL || "http://localhost:4004";
@@ -75,7 +75,7 @@ router.get("/summary", requireAuth, requireRole("ADMIN"), async (req, res) => {
       pendingCount,
       failedCount,
       totalRevenue,
-      currency: "usd",
+      currency: "lkr",
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -128,18 +128,20 @@ router.post("/checkout-session", requireAuth, async (req, res) => {
       .join(" ");
     
     // Pick amount from fee map
-    const amountInCents = doctorFees[profession] ?? doctorFees["General Medicine"];
+    const baseAmount = doctorFees[profession] ?? doctorFees["General Medicine"];
+const amountInLKR = baseAmount * 100;
 
-    console.log("Amount in cents for this doctor:", amountInCents);
+    console.log("Amount sent to Stripe:", amountInLKR);
+console.log("Actual LKR amount:", amountInLKR / 100);
     console.log("Doctor profession used for calculation:", profession);
 
     const payment = await Payment.create({
       appointmentId,
       userId: req.user.userId,
-      amount: amountInCents,
+      amount: amountInLKR,
       status: "PENDING",
       provider: "STRIPE_TEST",
-      currency: "usd",
+      currency: "lkr",
     });
 
     const session = await stripe.checkout.sessions.create({
@@ -148,11 +150,11 @@ router.post("/checkout-session", requireAuth, async (req, res) => {
       line_items: [
         {
           price_data: {
-            currency: "usd",
+            currency: "lkr",
             product_data: {
               name: `Appointment Payment (${profession})`,
             },
-            unit_amount: amountInCents,
+            unit_amount: amountInLKR,
           },
           quantity: 1,
         },
@@ -285,15 +287,16 @@ router.post("/for-appointment", requireAuth, async (req, res) => {
       .split(" ")
       .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ");
-    const amountInCents = doctorFees[profession] ?? doctorFees["General Medicine"];
+    const baseAmount = doctorFees[profession] ?? doctorFees["General Medicine"];
+const amountInLKR = baseAmount * 100;
 
     const payment = await Payment.create({
       appointmentId,
       userId: req.user.userId,
-      amount: amountInCents,
+      amount: amountInLKR,
       status: "PENDING",
       provider: "STRIPE_TEST",
-      currency: "usd",
+      currency: "lkr",
     });
 
     res.json({ ok: true, paymentId: payment._id, payment });
