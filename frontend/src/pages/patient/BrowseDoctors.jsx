@@ -19,24 +19,21 @@ export default function BrowseDoctors() {
   const load = async (searchValue = "") => {
     try {
       setLoading(true);
-      
-      // If search value is empty, load all doctors
+
+      const res = await axios.get(`${API.doctor}/doctors`);
+      const allDoctors = res.data || [];
+
       if (!searchValue.trim()) {
-        const res = await axios.get(`${API.doctor}/doctors`);
-        setDoctors(res.data);
+        setDoctors(allDoctors);
       } else {
-        // First, try to load all doctors and filter by specialty or ID
-        const res = await axios.get(`${API.doctor}/doctors`);
-        const allDoctors = res.data;
-        
-        // Filter by specialty OR userId (doctor ID)
-        const filteredDoctors = allDoctors.filter(doctor => {
-          const searchLower = searchValue.toLowerCase().trim();
+        const searchLower = searchValue.toLowerCase().trim();
+
+        const filteredDoctors = allDoctors.filter((doctor) => {
           const specialtyMatch = doctor.specialty?.toLowerCase().includes(searchLower);
           const idMatch = doctor.userId?.toLowerCase().includes(searchLower);
           return specialtyMatch || idMatch;
         });
-        
+
         setDoctors(filteredDoctors);
       }
     } catch (err) {
@@ -88,13 +85,14 @@ export default function BrowseDoctors() {
           <div style={styles.logo}>
             <div style={styles.logoIcon}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15 8H22L16 12L19 18L12 14L5 18L8 12L2 8H9L12 2Z" fill="currentColor"/>
+                <path d="M12 2L15 8H22L16 12L19 18L12 14L5 18L8 12L2 8H9L12 2Z" fill="currentColor" />
               </svg>
             </div>
             <div style={styles.logoText}>
               Medi<span style={styles.logoSpan}>Book</span>
             </div>
           </div>
+
           <div style={styles.adminInfo}>
             <div style={styles.adminAvatar}>{getName()?.charAt(0) || "P"}</div>
             <div>
@@ -103,12 +101,12 @@ export default function BrowseDoctors() {
             </div>
           </div>
         </div>
-        
+
         <div style={styles.sidebarNav}>
           {navItems.map((item) => (
-            <Link 
-              key={item.path} 
-              to={item.path} 
+            <Link
+              key={item.path}
+              to={item.path}
               style={item.active ? styles.navItemActive : styles.navItem}
               className="nav-item"
             >
@@ -116,6 +114,7 @@ export default function BrowseDoctors() {
               <span>{item.label}</span>
             </Link>
           ))}
+
           <button onClick={logout} style={styles.logoutBtn} className="logout-button">
             <span style={styles.navIcon}>🚪</span>
             <span>Logout</span>
@@ -131,8 +130,11 @@ export default function BrowseDoctors() {
               <h1 style={styles.title}>
                 Browse <span style={styles.gradientText}>Doctors</span>
               </h1>
-              <p style={styles.subtitle}>Connect with top specialists & schedule appointments seamlessly</p>
+              <p style={styles.subtitle}>
+                Connect with top specialists & schedule appointments seamlessly
+              </p>
             </div>
+
             <div style={styles.statsBadge}>
               <span>{doctors.length} Available</span>
             </div>
@@ -144,7 +146,7 @@ export default function BrowseDoctors() {
               <span style={styles.searchIcon}>🔍</span>
               <h3 style={styles.searchTitle}>Find a Doctor</h3>
             </div>
-            
+
             <div style={styles.searchContainer}>
               <div style={styles.searchInputWrapper}>
                 <input
@@ -153,19 +155,28 @@ export default function BrowseDoctors() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search by specialty (e.g., Cardiologist) or Doctor ID"
                   style={styles.searchInput}
-                  onKeyPress={(e) => e.key === 'Enter' && load(searchTerm)}
+                  onKeyDown={(e) => e.key === "Enter" && load(searchTerm)}
                   className="search-input"
                 />
               </div>
+
               <div style={styles.searchButtons}>
                 <button onClick={() => load(searchTerm)} style={styles.searchBtn} className="primary-btn">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z" stroke="currentColor" strokeWidth="2"/>
+                    <path
+                      d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    />
                   </svg>
                   Search
                 </button>
-                <button 
-                  onClick={() => { setSearchTerm(""); load(""); }} 
+
+                <button
+                  onClick={() => {
+                    setSearchTerm("");
+                    load("");
+                  }}
                   style={styles.clearBtn}
                   className="secondary-btn"
                 >
@@ -179,7 +190,10 @@ export default function BrowseDoctors() {
               {specialties.map((spec) => (
                 <button
                   key={spec}
-                  onClick={() => { setSearchTerm(spec); load(spec); }}
+                  onClick={() => {
+                    setSearchTerm(spec);
+                    load(spec);
+                  }}
                   style={searchTerm === spec ? styles.chipActive : styles.chip}
                   className="chip"
                 >
@@ -187,10 +201,12 @@ export default function BrowseDoctors() {
                 </button>
               ))}
             </div>
-            
+
             <div style={styles.searchHint}>
               <span style={styles.hintIcon}>💡</span>
-              <span style={styles.hintText}>Tip: You can search by Doctor ID (e.g., {doctors[0]?.userId?.slice(-6) || "123456"}) or Specialty name</span>
+              <span style={styles.hintText}>
+                Tip: You can search by Doctor ID (e.g., {doctors[0]?.userId?.slice(-6) || "123456"}) or Specialty name
+              </span>
             </div>
           </div>
 
@@ -207,78 +223,113 @@ export default function BrowseDoctors() {
               <p style={styles.emptySubtext}>Try searching by specialty name or doctor ID</p>
             </div>
           ) : (
-            <div style={styles.doctorsGrid}>
-              {doctors.map((d) => (
-                <div 
-                  key={d._id} 
-                  style={{
-                    ...styles.doctorCard,
-                    ...(hoveredCard === d._id ? styles.doctorCardHover : {})
-                  }}
-                  onMouseEnter={() => setHoveredCard(d._id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className="doctor-card"
-                >
-                  <div style={styles.doctorHeader}>
-                    <div style={styles.doctorAvatar}>
-                      {d.specialty?.charAt(0) || "D"}
-                    </div>
-                    <div style={styles.doctorHeaderInfo}>
-                      <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
-                      <div style={styles.doctorId}>
-                        <span style={styles.idLabel}>ID: </span>
-                        <span style={styles.idValue}>{d.userId || "N/A"}</span>
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(d.userId);
-                            alert("Doctor ID copied to clipboard!");
-                          }}
-                          style={styles.copyBtn}
-                          title="Copy Doctor ID"
-                        >
-                          📋
-                        </button>
+            <>
+              <div style={styles.doctorsGrid}>
+                {doctors.map((d) => (
+                  <div
+                    key={d._id}
+                    style={{
+                      ...styles.doctorCard,
+                      ...(hoveredCard === d._id ? styles.doctorCardHover : {}),
+                    }}
+                    onMouseEnter={() => setHoveredCard(d._id)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    className="doctor-card"
+                  >
+                    <div style={styles.doctorHeader}>
+                      <div style={styles.doctorAvatar}>
+                        {d.specialty?.charAt(0) || "D"}
+                      </div>
+
+                      <div style={styles.doctorHeaderInfo}>
+                        <div style={styles.doctorSpecialty}>
+                          {d.specialty || "General Physician"}
+                        </div>
+
+                        <div style={styles.doctorId}>
+                          <span style={styles.idLabel}>ID: </span>
+                          <span style={styles.idValue}>{d.userId || "N/A"}</span>
+
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              if (d.userId) {
+                                navigator.clipboard.writeText(d.userId);
+                                alert("Doctor ID copied to clipboard!");
+                              }
+                            }}
+                            style={styles.copyBtn}
+                            title="Copy Doctor ID"
+                            type="button"
+                          >
+                            📋
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div style={styles.doctorBio}>
-                    <p>{d.bio || "Experienced healthcare professional dedicated to your well-being."}</p>
-                  </div>
-
-                  <div style={styles.availabilitySection}>
-                    <div style={styles.availabilityTitle}>
-                      <span>📅</span>
-                      <span>Availability</span>
+                    <div style={styles.doctorBio}>
+                      <p>
+                        {d.bio || "Experienced healthcare professional dedicated to your well-being."}
+                      </p>
                     </div>
-                    {d.availability?.length ? (
-                      <div style={styles.slotsContainer}>
-                        {d.availability.slice(0, 3).map((slot, idx) => (
-                          <div key={idx} style={styles.slot}>
-                            <span style={styles.slotDay}>{slot.day}</span>
-                            <span style={styles.slotTime}>{slot.from} - {slot.to}</span>
-                          </div>
-                        ))}
-                        {d.availability.length > 3 && (
-                          <div style={styles.moreSlots}>+{d.availability.length - 3} more slots</div>
-                        )}
-                      </div>
-                    ) : (
-                      <div style={styles.noAvailability}>No availability added yet</div>
-                    )}
-                  </div>
 
-                  <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                      <path d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                    </svg>
-                    Book Appointment
-                  </Link>
+                    <div style={styles.availabilitySection}>
+                      <div style={styles.availabilityTitle}>
+                        <span>📅</span>
+                        <span>Availability</span>
+                      </div>
+
+                      {d.availability?.length ? (
+                        <div style={styles.slotsContainer}>
+                          {d.availability.slice(0, 3).map((slot, idx) => (
+                            <div key={idx} style={styles.slot}>
+                              <span style={styles.slotDay}>{slot.day}</span>
+                              <span style={styles.slotTime}>
+                                {slot.from} - {slot.to}
+                              </span>
+                            </div>
+                          ))}
+
+                          {d.availability.length > 3 && (
+                            <div style={styles.moreSlots}>
+                              +{d.availability.length - 3} more slots
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={styles.noAvailability}>No availability added yet</div>
+                      )}
+                    </div>
+
+                    <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path
+                          d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                        <path
+                          d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      Book Appointment
+                    </Link>
+                  </div>
+                ))}
+              </div>
+
+              {/* Footer Stats */}
+              {doctors.length > 0 && (
+                <div style={styles.footerStats}>
+                  Showing {doctors.length} doctor{doctors.length !== 1 ? "s" : ""} available
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -287,7 +338,7 @@ export default function BrowseDoctors() {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
-        
+
         @keyframes fadeSlideUp {
           from {
             opacity: 0;
@@ -298,65 +349,85 @@ export default function BrowseDoctors() {
             transform: translateY(0);
           }
         }
-        
+
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
+        #root {
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+        }
+
         .doctor-card {
           animation: fadeSlideUp 0.5s ease-out;
           transition: all 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
-        
+
         .chip {
           transition: all 0.2s ease;
           cursor: pointer;
         }
-        
+
         .chip:hover {
           transform: translateY(-2px);
           box-shadow: 0 4px 12px rgba(30, 111, 92, 0.15);
         }
-        
+
         .primary-btn, .secondary-btn, .book-btn {
           transition: all 0.2s ease;
           cursor: pointer;
         }
-        
+
         .primary-btn:hover {
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(30, 111, 92, 0.3);
         }
-        
+
         .secondary-btn:hover {
           transform: translateY(-2px);
           background-color: #f0f2f5;
         }
-        
+
         .book-btn:hover {
           transform: translateY(-2px);
           background-color: #d9f0eb;
           box-shadow: 0 4px 12px rgba(30, 111, 92, 0.2);
         }
-        
+
         .nav-item {
           transition: all 0.2s ease;
         }
-        
+
         .nav-item:hover {
           background-color: #f8fafc;
           transform: translateX(4px);
         }
-        
+
         .logout-button {
           transition: all 0.2s ease;
         }
-        
+
         .logout-button:hover {
           background-color: #fee;
           transform: translateX(4px);
         }
-        
+
         .search-input {
           transition: all 0.2s ease;
         }
-        
+
         .search-input:focus {
           border-color: #1e6f5c;
           box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08);
@@ -370,10 +441,12 @@ export default function BrowseDoctors() {
 const styles = {
   container: {
     display: "flex",
-    minHeight: "100vh",
     width: "100%",
+    height: "100vh",
+    background: "linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)",
     backgroundColor: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
+    overflow: "hidden",
   },
   sidebar: {
     width: "280px",
@@ -382,12 +455,9 @@ const styles = {
     borderRight: "1px solid rgba(0, 0, 0, 0.05)",
     display: "flex",
     flexDirection: "column",
-    position: "fixed",
-    top: 0,
-    left: 0,
     height: "100vh",
     overflowY: "auto",
-    zIndex: 100,
+    flexShrink: 0,
   },
   sidebarHeader: {
     padding: "32px 24px",
@@ -496,7 +566,8 @@ const styles = {
   },
   mainContent: {
     flex: 1,
-    marginLeft: "280px",
+    overflowY: "auto",
+    height: "100vh",
     padding: "40px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
@@ -506,6 +577,7 @@ const styles = {
     maxWidth: "1400px",
     width: "100%",
     margin: "0 auto",
+    paddingBottom: "40px",
   },
   header: {
     display: "flex",
@@ -780,7 +852,7 @@ const styles = {
     padding: "12px",
   },
   bookBtn: {
-    margin: "0 24px 24px 24px",
+    margin: "24px",
     width: "calc(100% - 48px)",
     padding: "12px",
     backgroundColor: "#e8f5e9",
@@ -803,6 +875,8 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     padding: "80px 20px",
+    backgroundColor: "#ffffff",
+    borderRadius: "24px",
   },
   spinner: {
     width: "40px",
@@ -836,5 +910,12 @@ const styles = {
   emptySubtext: {
     fontSize: "14px",
     color: "#5e7a93",
+  },
+  footerStats: {
+    marginTop: "24px",
+    textAlign: "center",
+    fontSize: "13px",
+    color: "#5e7a93",
+    padding: "20px",
   },
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
-import { clearSession, getName } from "../../api/auth";
+import { clearSession } from "../../api/auth";
 
 export default function DoctorProfile() {
   const navigate = useNavigate();
