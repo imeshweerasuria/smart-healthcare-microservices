@@ -35,10 +35,10 @@ export default function MyPayments() {
 
   // Format currency
   const formatCurrency = (amount, currency) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-LK', {
       style: 'currency',
-      currency: currency || 'USD',
-    }).format(amount);
+      currency: currency || 'LKR',
+    }).format(amount/100);
   };
 
   // Calculate totals
@@ -81,21 +81,21 @@ export default function MyPayments() {
               <div>
                 <div style={styles.summaryTitle}>Total Spent</div>
                 <div style={styles.summaryValue}>
-                  {formatCurrency(totalSpent, list[0]?.currency || "USD")}
+                  {formatCurrency(totalSpent, list[0]?.currency || "LKR")}
                 </div>
               </div>
               <div style={styles.summaryDivider} />
               <div>
                 <div style={styles.summaryTitle}>Total Refunded</div>
                 <div style={{ ...styles.summaryValue, color: "#006064" }}>
-                  {formatCurrency(totalRefunded, list[0]?.currency || "USD")}
+                  {formatCurrency(totalRefunded, list[0]?.currency || "LKR")}
                 </div>
               </div>
               <div style={styles.summaryDivider} />
               <div>
                 <div style={styles.summaryTitle}>Net Total</div>
                 <div style={{ ...styles.summaryValue, color: "#1e6f5c" }}>
-                  {formatCurrency(netTotal, list[0]?.currency || "USD")}
+                  {formatCurrency(netTotal, list[0]?.currency || "LKR")}
                 </div>
               </div>
             </div>
