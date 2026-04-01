@@ -60,16 +60,21 @@ export default function BrowseDoctors() {
   ];
 
   const specialties = [
-    "Cardiologist",
-    "Dermatologist",
-    "Neurologist",
-    "Pediatrician",
-    "Psychiatrist",
-    "Orthopedic",
-    "Ophthalmologist",
-    "Gynecologist",
-    "General Physician",
-    "Dentist",
+    "Cardiology",
+    "Dermatology",
+    "Neurology",
+    "Pediatrics",
+    "Psychiatry",
+    "Orthopedics",
+    "Ophthalmology",
+    "Gynecology",
+    "Urology",
+    "General Medicine",
+    "Family Medicine",
+    "Emergency Medicine",
+    "Radiology",
+    "Anesthesiology",
+    "Surgery",
   ];
 
   return (
