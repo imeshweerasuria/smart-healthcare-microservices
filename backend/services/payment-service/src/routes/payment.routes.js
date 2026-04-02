@@ -190,11 +190,18 @@ router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
 
     const { paymentId, sessionId } = req.body;
 
+    console.log("paymentId:", paymentId);
+console.log("sessionId:", sessionId);
+
+
     if (!paymentId || !sessionId) {
       return res.status(400).json({ message: "paymentId and sessionId required" });
     }
 
     const payment = await Payment.findById(paymentId);
+
+    console.log("payment:", payment);
+
     if (!payment) {
       return res.status(404).json({ message: "Payment not found" });
     }
@@ -208,6 +215,8 @@ router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
     }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
+    console.log("stripe session:", session.payment_status);
+
 
     if (session.payment_status === "paid") {
       // Payment successful

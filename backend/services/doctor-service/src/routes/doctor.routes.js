@@ -5,6 +5,13 @@ const { requireAuth, requireRole } = require("../../../../shared/middleware/auth
 
 const router = express.Router();
 const PATIENT_URL = process.env.PATIENT_URL || "http://localhost:4002";
+const AUTH_URL = process.env.AUTH_URL || "http://localhost:4001";
+
+// helper: get auth user contact/info from auth-service
+async function getUserContact(userId) {
+  const res = await axios.get(`${AUTH_URL}/auth/users/${userId}/contact`);
+  return res.data;
+}
 
 // List doctors (with optional specialty filter)
 router.get("/", async (req, res) => {
@@ -16,9 +23,41 @@ router.get("/", async (req, res) => {
       query.specialty = { $regex: specialty, $options: "i" };
     }
 
-    const list = await DoctorProfile.find(query).sort({ createdAt: -1 });
-    res.json(list);
+    const profiles = await DoctorProfile.find(query).sort({ createdAt: -1 });
+
+    const enrichedDoctors = await Promise.all(
+      profiles.map(async (profile) => {
+        try {
+          const user = await getUserContact(profile.userId);
+
+          // show only actual doctors, ideally verified and enabled
+          if (user.role !== "DOCTOR") return null;
+          if (user.isDisabled) return null;
+          if (!user.doctorVerified) return null;
+
+          return {
+            _id: profile._id,
+            userId: profile.userId,
+            name: user.name || "",
+            email: user.email || "",
+            phone: user.phone || "",
+            doctorVerified: user.doctorVerified,
+            specialty: profile.specialty || "",
+            bio: profile.bio || "",
+            availability: profile.availability || [],
+            createdAt: profile.createdAt,
+            updatedAt: profile.updatedAt,
+          };
+        } catch (err) {
+          console.error(`Failed to enrich doctor ${profile.userId}:`, err.message);
+          return null;
+        }
+      })
+    );
+
+    res.json(enrichedDoctors.filter(Boolean));
   } catch (e) {
+    console.error("List doctors error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -31,8 +70,28 @@ router.get("/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
 
     if (!profile) profile = await DoctorProfile.create({ userId });
 
-    res.json(profile);
+    let user = null;
+    try {
+      user = await getUserContact(userId);
+    } catch (err) {
+      console.error("Failed to fetch doctor contact:", err.message);
+    }
+
+    res.json({
+      _id: profile._id,
+      userId: profile.userId,
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      doctorVerified: user?.doctorVerified || false,
+      specialty: profile.specialty || "",
+      bio: profile.bio || "",
+      availability: profile.availability || [],
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    });
   } catch (e) {
+    console.error("Get /me doctor profile error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -51,8 +110,28 @@ router.put("/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
 
     await profile.save();
 
-    res.json(profile);
+    let user = null;
+    try {
+      user = await getUserContact(userId);
+    } catch (err) {
+      console.error("Failed to fetch doctor contact after update:", err.message);
+    }
+
+    res.json({
+      _id: profile._id,
+      userId: profile.userId,
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      doctorVerified: user?.doctorVerified || false,
+      specialty: profile.specialty || "",
+      bio: profile.bio || "",
+      availability: profile.availability || [],
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    });
   } catch (e) {
+    console.error("Update /me doctor profile error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -71,11 +150,30 @@ router.put("/me/availability", requireAuth, requireRole("DOCTOR"), async (req, r
     if (!profile) profile = await DoctorProfile.create({ userId });
 
     profile.availability = availability;
-
     await profile.save();
 
-    res.json(profile);
+    let user = null;
+    try {
+      user = await getUserContact(userId);
+    } catch (err) {
+      console.error("Failed to fetch doctor contact after availability update:", err.message);
+    }
+
+    res.json({
+      _id: profile._id,
+      userId: profile.userId,
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      doctorVerified: user?.doctorVerified || false,
+      specialty: profile.specialty || "",
+      bio: profile.bio || "",
+      availability: profile.availability || [],
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    });
   } catch (e) {
+    console.error("Update availability error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -124,7 +222,7 @@ router.get(
   }
 );
 
-// ⚠️ KEEP THIS LAST - dynamic route
+// KEEP THIS LAST - dynamic route
 router.get("/:doctorUserId", async (req, res) => {
   try {
     const profile = await DoctorProfile.findOne({
@@ -135,8 +233,28 @@ router.get("/:doctorUserId", async (req, res) => {
       return res.status(404).json({ message: "Doctor not found" });
     }
 
-    res.json(profile);
+    let user = null;
+    try {
+      user = await getUserContact(profile.userId);
+    } catch (err) {
+      console.error("Failed to fetch doctor contact by id:", err.message);
+    }
+
+    res.json({
+      _id: profile._id,
+      userId: profile.userId,
+      name: user?.name || "",
+      email: user?.email || "",
+      phone: user?.phone || "",
+      doctorVerified: user?.doctorVerified || false,
+      specialty: profile.specialty || "",
+      bio: profile.bio || "",
+      availability: profile.availability || [],
+      createdAt: profile.createdAt,
+      updatedAt: profile.updatedAt,
+    });
   } catch (e) {
+    console.error("Get doctor by id error:", e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
