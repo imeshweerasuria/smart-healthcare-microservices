@@ -213,39 +213,21 @@ export default function BrowseDoctors() {
                       </div>
                       <div style={styles.doctorHeaderInfo}>
                         <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
-                        <div style={styles.doctorId}>ID: {d.userId?.slice(-6) || "N/A"}</div>
-            <div style={styles.doctorsGrid}>
-              {doctors.map((d) => (
-                <div 
-                  key={d._id} 
-                  style={{
-                    ...styles.doctorCard,
-                    ...(hoveredCard === d._id ? styles.doctorCardHover : {})
-                  }}
-                  onMouseEnter={() => setHoveredCard(d._id)}
-                  onMouseLeave={() => setHoveredCard(null)}
-                  className="doctor-card"
-                >
-                  <div style={styles.doctorHeader}>
-                    <div style={styles.doctorAvatar}>
-                      {d.specialty?.charAt(0) || "D"}
-                    </div>
-                    <div style={styles.doctorHeaderInfo}>
-                      <div style={styles.doctorSpecialty}>{d.specialty || "General Physician"}</div>
-                      <div style={styles.doctorId}>
-                        <span style={styles.idLabel}>ID: </span>
-                        <span style={styles.idValue}>{d.userId || "N/A"}</span>
-                        <button 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            navigator.clipboard.writeText(d.userId);
-                            alert("Doctor ID copied to clipboard!");
-                          }}
-                          style={styles.copyBtn}
-                          title="Copy Doctor ID"
-                        >
-                          📋
-                        </button>
+                        <div style={styles.doctorId}>
+                          <span style={styles.idLabel}>ID: </span>
+                          <span style={styles.idValue}>{d.userId || "N/A"}</span>
+                          <button 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigator.clipboard.writeText(d.userId);
+                              alert("Doctor ID copied to clipboard!");
+                            }}
+                            style={styles.copyBtn}
+                            title="Copy Doctor ID"
+                          >
+                            📋
+                          </button>
+                        </div>
                       </div>
                     </div>
 
