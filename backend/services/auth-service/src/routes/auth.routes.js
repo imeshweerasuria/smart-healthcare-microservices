@@ -120,13 +120,19 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GOOGLE LOGIN
+// GOOGLE LOGIN (UPDATED with role selection)
 router.post("/google-login", async (req, res) => {
   try {
-    const { credential } = req.body;
+    const { credential, role } = req.body;
 
     if (!credential) {
       return res.status(400).json({ message: "Google credential is required" });
+    }
+
+    const selectedRole = role || "PATIENT";
+
+    if (!["PATIENT", "DOCTOR", "ADMIN"].includes(selectedRole)) {
+      return res.status(400).json({ message: "Invalid role" });
     }
 
     const ticket = await googleClient.verifyIdToken({
@@ -155,9 +161,9 @@ router.post("/google-login", async (req, res) => {
         passwordHash: "",
         googleId,
         picture,
-        role: "PATIENT",
+        role: selectedRole,
         authProvider: "GOOGLE",
-        doctorVerified: true,
+        doctorVerified: selectedRole === "DOCTOR" ? false : true,
         isDisabled: false,
       });
     } else {
