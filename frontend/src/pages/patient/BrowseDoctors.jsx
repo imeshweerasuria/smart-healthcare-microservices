@@ -59,17 +59,23 @@ export default function BrowseDoctors() {
     { path: "/patient/payments", label: "Payments", icon: "💰" },
   ];
 
+  // ✅ Merged & cleaned specialties array
   const specialties = [
-    "Cardiologist",
-    "Dermatologist",
-    "Neurologist",
-    "Pediatrician",
-    "Psychiatrist",
-    "Orthopedic",
-    "Ophthalmologist",
-    "Gynecologist",
-    "General Physician",
-    "Dentist",
+    "Cardiology",
+    "Dermatology",
+    "Neurology",
+    "Pediatrics",
+    "Psychiatry",
+    "Orthopedics",
+    "Ophthalmology",
+    "Gynecology",
+    "Urology",
+    "General Medicine",
+    "Family Medicine",
+    "Emergency Medicine",
+    "Radiology",
+    "Anesthesiology",
+    "Surgery",
   ];
 
   return (
@@ -197,6 +203,7 @@ export default function BrowseDoctors() {
               ))}
             </div>
 
+            {/* ✅ Updated search hint with dynamic doctor ID example */}
             <div style={styles.searchHint}>
               <span style={styles.hintIcon}>💡</span>
               <span style={styles.hintText}>
