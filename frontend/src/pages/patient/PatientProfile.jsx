@@ -7,6 +7,7 @@ import { clearSession, getName } from "../../api/auth";
 export default function PatientProfile() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
+    fullName: "",  // Added fullName field
     dateOfBirth: "",
     gender: "",
     phone: "",
@@ -18,6 +19,7 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
+  const patientName = getName(); // Get patient name from auth
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -39,6 +41,7 @@ export default function PatientProfile() {
       });
 
       setForm({
+        fullName: patientName || "", // Set the name from auth
         dateOfBirth: res.data.dateOfBirth || "",
         gender: res.data.gender || "",
         phone: res.data.phone || "",
@@ -73,19 +76,26 @@ export default function PatientProfile() {
     
     try {
       setSaving(true);
+      // Create a copy of form without the fullName field
+      const profileData = {
+        dateOfBirth: form.dateOfBirth,
+        gender: form.gender,
+        phone: form.phone,
+        address: form.address,
+        medicalHistory: form.medicalHistory,
+        allergies: form.allergies
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+        chronicConditions: form.chronicConditions
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      };
+      
       await axios.put(
         `${API.patient}/patients/me`,
-        {
-          ...form,
-          allergies: form.allergies
-            .split(",")
-            .map((x) => x.trim())
-            .filter(Boolean),
-          chronicConditions: form.chronicConditions
-            .split(",")
-            .map((x) => x.trim())
-            .filter(Boolean),
-        },
+        profileData,
         { headers: authHeaders() }
       );
 
@@ -125,9 +135,9 @@ export default function PatientProfile() {
               </div>
             </div>
             <div style={styles.adminInfo}>
-              <div style={styles.adminAvatar}>{getName()?.charAt(0) || "P"}</div>
+              <div style={styles.adminAvatar}>{patientName?.charAt(0) || "P"}</div>
               <div>
-                <div style={styles.adminName}>{getName() || "Patient"}</div>
+                <div style={styles.adminName}>{patientName || "Patient"}</div>
                 <div style={styles.adminRole}>Patient</div>
               </div>
             </div>
@@ -187,9 +197,9 @@ export default function PatientProfile() {
             </div>
           </div>
           <div style={styles.adminInfo}>
-            <div style={styles.adminAvatar}>{getName()?.charAt(0) || "P"}</div>
+            <div style={styles.adminAvatar}>{patientName?.charAt(0) || "P"}</div>
             <div>
-              <div style={styles.adminName}>{getName() || "Patient"}</div>
+              <div style={styles.adminName}>{patientName || "Patient"}</div>
               <div style={styles.adminRole}>Patient</div>
             </div>
           </div>
@@ -222,6 +232,23 @@ export default function PatientProfile() {
         <div style={styles.formContainer}>
           <form onSubmit={save} style={styles.form}>
             <div style={styles.formGrid}>
+              {/* Patient Name - Non-editable field */}
+              <div style={styles.formGroupFull}>
+                <div style={styles.nameCard}>
+                  <div style={styles.nameIcon}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                  <div style={styles.nameInfo}>
+                    <span style={styles.nameLabel}>Full Name</span>
+                    <span style={styles.nameValue}>{form.fullName || patientName || "Not specified"}</span>
+                    <span style={styles.nameHint}>This field cannot be edited. Contact support for name changes.</span>
+                  </div>
+                </div>
+              </div>
+
               <div style={styles.formGroup}>
                 <label style={styles.label}>Date of Birth</label>
                 <input
@@ -592,6 +619,50 @@ const styles = {
     flexDirection: "column",
     gap: "8px",
     gridColumn: "span 2",
+  },
+  // New styles for name card
+  nameCard: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+    padding: "24px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "16px",
+    border: "1px solid #eef2f6",
+    marginBottom: "8px",
+  },
+  nameIcon: {
+    width: "56px",
+    height: "56px",
+    backgroundColor: "#e8f5e9",
+    borderRadius: "28px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#1e6f5c",
+  },
+  nameInfo: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  nameLabel: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#5e7a93",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  nameValue: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+  },
+  nameHint: {
+    fontSize: "12px",
+    color: "#9aaebf",
+    marginTop: "4px",
   },
   label: {
     fontSize: "14px",
