@@ -342,17 +342,18 @@ router.put("/:id/confirm-payment", requireAuth, requireRole("PATIENT"), async (r
       return res.status(403).json({ message: "Forbidden" });
     }
 
-    if (appt.status !== "ACCEPTED") {
-      return res.status(400).json({ message: "Appointment must be ACCEPTED first" });
+    // Mark as paid
+    appt.paymentStatus = "PAID";
+
+    // Only CONFIRM if doctor already accepted
+    if (appt.status === "ACCEPTED") {
+      appt.status = "CONFIRMED";
+
+      // Notify both patient & doctor
+      await notifyConfirmedToBoth(appt);
     }
 
-    appt.paymentStatus = "PAID";
-    appt.status = "CONFIRMED";
     await appt.save();
-
-    // REQUIRED CASE 1:
-    // On CONFIRMED -> send SMS + Email to BOTH patient and doctor
-    await notifyConfirmedToBoth(appt);
 
     res.json({ ok: true, appointment: appt });
   } catch (e) {
@@ -360,6 +361,7 @@ router.put("/:id/confirm-payment", requireAuth, requireRole("PATIENT"), async (r
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
