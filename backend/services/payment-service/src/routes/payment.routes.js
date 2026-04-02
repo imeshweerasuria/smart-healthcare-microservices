@@ -65,6 +65,7 @@ router.get("/summary", requireAuth, requireRole("ADMIN"), async (req, res) => {
     const paidCount = payments.filter((p) => p.status === "PAID").length;
     const pendingCount = payments.filter((p) => p.status === "PENDING").length;
     const failedCount = payments.filter((p) => p.status === "FAILED").length;
+    const refundedCount = payments.filter((p) => p.status === "REFUNDED").length;
     const totalRevenue = payments
       .filter((p) => p.status === "PAID")
       .reduce((sum, p) => sum + p.amount, 0);
@@ -74,6 +75,7 @@ router.get("/summary", requireAuth, requireRole("ADMIN"), async (req, res) => {
       paidCount,
       pendingCount,
       failedCount,
+      refundedCount,
       totalRevenue,
       currency: "lkr",
     });
@@ -179,6 +181,7 @@ console.log("Actual LKR amount:", amountInLKR / 100);
 });
 
 // Confirm Stripe success after redirect
+// Confirm Stripe success after redirect
 router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
   try {
     if (!stripe) {
@@ -215,52 +218,59 @@ console.log("sessionId:", sessionId);
     console.log("stripe session:", session.payment_status);
 
 
-    if (session.payment_status !== "paid") {
-      return res.status(400).json({ message: "Stripe session is not paid yet" });
-    }
+    if (session.payment_status === "paid") {
+      // Payment successful
+      payment.status = "PAID";
+      payment.stripeSessionId = session.id;
+      payment.stripePaymentIntentId = session.payment_intent || "";
+      await payment.save();
 
-    payment.status = "PAID";
-    payment.stripeSessionId = session.id;
-    payment.stripePaymentIntentId = session.payment_intent || "";
-    await payment.save();
+      const appointment = await getAppointment(payment.appointmentId, req.headers.authorization);
+      const doctorProfile = await getDoctorProfile(appointment.doctorId, req.headers.authorization);
+      const profession = doctorProfile.specialty || "General Medicine";
 
-    const appointment = await getAppointment(payment.appointmentId, req.headers.authorization);
-    console.log("appointment:", appointment);
-    // Fetch doctor profile for email notification
-    const doctorProfile = await getDoctorProfile(appointment.doctorId, req.headers.authorization);
-    const profession = doctorProfile.specialty || "General Medicine";
+      // Update appointment
+      await axios.put(
+        `${APPOINTMENT_URL}/appointments/${payment.appointmentId}/confirm-payment`,
+        {},
+        { headers: { Authorization: req.headers.authorization } }
+      );
 
-    await axios.put(
-      `${APPOINTMENT_URL}/appointments/${payment.appointmentId}/confirm-payment`,
-      {},
-      {
-        headers: { Authorization: req.headers.authorization },
+      // Notify patient
+      if (appointment.patientEmail) {
+        try {
+          await axios.post(`${NOTIFICATION_URL}/notify/email`, {
+            to: appointment.patientEmail,
+            subject: "Stripe Payment Successful",
+            text: `Your payment for ${profession} appointment was successful.`,
+          });
+        } catch (notifyErr) {
+          console.error("Stripe success email failed:", notifyErr.message);
+        }
       }
-    );
 
-    if (appointment.patientEmail) {
-      try {
-        await axios.post(`${NOTIFICATION_URL}/notify/email`, {
-          to: appointment.patientEmail,
-          subject: "Stripe Payment Successful",
-          text: `Your payment for ${profession} appointment was successful.`,
-        });
-      } catch (notifyErr) {
-        console.error("Stripe success email failed:", notifyErr.message);
-      }
+      return res.json({
+        ok: true,
+        payment,
+        message: "Stripe payment confirmed and appointment updated",
+      });
+
+    } else {
+      // Payment failed or canceled
+      payment.status = "FAILED"; // mark as failed
+      payment.stripeSessionId = session.id;
+      payment.stripePaymentIntentId = session.payment_intent || "";
+      await payment.save();
+
+      return res.status(400).json({
+        ok: false,
+        payment,
+        message: "Payment failed or not completed",
+      });
     }
-
-    res.json({
-      ok: true,
-      payment,
-      message: "Stripe payment confirmed and appointment updated",
-    });
   } catch (err) {
-    console.error(
-      "Confirm stripe success error:",
-      err.response?.data || err.message
-    );
-    res.status(500).json({ message: err.message });
+    console.error("Confirm stripe success error:", err.response?.data || err.message);
+    return res.status(500).json({ message: err.message });
   }
 });
 
@@ -388,6 +398,7 @@ router.post("/refund", requireAuth, async (req, res) => {
     });
 
     payment.status = "REFUNDED";
+    payment.refundedAmount = payment.amount;
     await payment.save();
 
     // Fetch appointment for email notification

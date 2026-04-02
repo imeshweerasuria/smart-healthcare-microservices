@@ -36,7 +36,7 @@ export default function AdminPaymentSummary() {
   }, []);
 
   const formatCurrency = (amount, currency) => {
-    if (!amount && amount !== 0) return "N/A";
+    if (amount === null || amount === undefined) return null;
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency || "USD",
@@ -164,13 +164,6 @@ export default function AdminPaymentSummary() {
       bgColor: "#e8f5e9",
     },
     {
-      label: "Total Revenue",
-      value: formatCurrency(summary.totalRevenue, summary.currency),
-      icon: "💵",
-      color: "#0288d1",
-      bgColor: "#e3f2fd",
-    },
-    {
       label: "Paid",
       value: summary.paidCount || 0,
       icon: "✓",
@@ -193,6 +186,14 @@ export default function AdminPaymentSummary() {
       color: "#c62828",
       bgColor: "#ffebee",
       amount: formatCurrency(summary.failedAmount, summary.currency),
+    },
+     {
+      label: "Refunded",
+      value: summary.refundedCount || 0,
+      icon: "↩️",
+      color: "#c62828",
+      bgColor: "#ffebee",
+      amount: formatCurrency(summary.refundedAmount, summary.currency),
     },
   ];
 
@@ -314,7 +315,7 @@ export default function AdminPaymentSummary() {
                   <div style={styles.breakdownItem}>
                     <div style={styles.breakdownLabel}>
                       <span style={styles.paidDot}></span>
-                      Paid Amount
+                      Paid 
                     </div>
                     <div style={styles.breakdownValue}>
                       {formatCurrency(summary.paidAmount, summary.currency)}
@@ -326,7 +327,7 @@ export default function AdminPaymentSummary() {
                   <div style={styles.breakdownItem}>
                     <div style={styles.breakdownLabel}>
                       <span style={styles.pendingDot}></span>
-                      Pending Amount
+                      Pending 
                     </div>
                     <div style={styles.breakdownValue}>
                       {formatCurrency(summary.pendingAmount, summary.currency)}
@@ -338,14 +339,28 @@ export default function AdminPaymentSummary() {
                   <div style={styles.breakdownItem}>
                     <div style={styles.breakdownLabel}>
                       <span style={styles.failedDot}></span>
-                      Failed Amount
+                      Failed 
                     </div>
                     <div style={styles.breakdownValue}>
                       {formatCurrency(summary.failedAmount, summary.currency)}
                     </div>
                     <div style={styles.breakdownCount}>
                       ({summary.failedCount || 0} transactions)
+                    </div>                    
+                  </div>
+                 
+                  <div style={styles.breakdownItem}>
+                    <div style={styles.breakdownLabel}>
+                      <span style={styles.failedDot}></span>
+                      Refunded
                     </div>
+                    <div style={styles.breakdownValue}>
+                      {formatCurrency(summary.refundedAmount, summary.currency)}
+                    </div>
+                    <div style={styles.breakdownCount}>
+                      ({summary.refundedCount || 0} transactions)
+                    </div>
+                    
                   </div>
                 </div>
               </div>
@@ -429,6 +444,29 @@ export default function AdminPaymentSummary() {
                       {summary.failedCount} of {summary.totalCount} payments
                     </div>
                   </div>
+                  <div style={styles.distributionItem}>
+  <div style={styles.distributionHeader}>
+    <span style={styles.distributionLabel}>
+      <span style={styles.refundedDot}></span>
+      Refunded
+    </span>
+    <span style={styles.distributionPercent}>
+      {((summary.refundedCount / summary.totalCount) * 100).toFixed(1)}%
+    </span>
+  </div>
+  <div style={styles.barContainer}>
+    <div
+      style={{
+        ...styles.barFill,
+        width: `${(summary.refundedCount / summary.totalCount) * 100}%`,
+        backgroundColor: "#c62828", // same as refunded color
+      }}
+    ></div>
+  </div>
+  <div style={styles.distributionCount}>
+    {summary.refundedCount} of {summary.totalCount} payments
+  </div>
+</div>
                 </>
               )}
             </div>
@@ -974,4 +1012,10 @@ const styles = {
     color: "#1a2c3e",
     fontWeight: "500",
   },
+  refundedDot: {
+  width: "8px",
+  height: "8px",
+  borderRadius: "50%",
+  backgroundColor: "#c62828", // red-ish
+},
 };
