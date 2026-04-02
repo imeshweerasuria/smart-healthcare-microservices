@@ -46,6 +46,30 @@ export default function MyAppointments() {
     load();
   }, []);
 
+  // ⬇️ Add this right after the above useEffect
+useEffect(() => {
+  list.forEach(a => {
+    if (a.status === "PENDING" && a.paymentStatus !== "PAID" && !loadingMap[a._id]?.cancel) {
+      const appointmentTime = new Date(a.createdAt).getTime(); // make sure your API returns createdAt
+      const now = Date.now();
+      const twoMinutes = 2 * 60 * 1000;
+      const timeLeft = Math.max(twoMinutes - (now - appointmentTime), 0);
+
+      if (timeLeft > 0) {
+        setTimeout(() => {
+          cancelAppointment(a._id).then(() => {
+            showToast("Appointment cancelled automatically due to inactivity", "error");
+          });
+        }, timeLeft);
+      } else {
+        cancelAppointment(a._id).then(() => {
+          showToast("Appointment cancelled automatically due to inactivity", "error");
+        });
+      }
+    }
+  });
+}, [list]);
+
   // Helper to toggle per-action loading
   const setActionLoading = (id, action, value) => {
     setLoadingMap(prev => ({
