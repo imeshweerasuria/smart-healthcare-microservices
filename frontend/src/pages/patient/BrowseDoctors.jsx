@@ -63,8 +63,8 @@ export default function BrowseDoctors() {
   ];
 
   const specialties = [
-    "Cardiologist", "Dermatologist", "Neurologist", "Pediatrician", "Psychiatrist",
-    "Orthopedic", "Ophthalmologist", "Gynecologist", "General Physician", "Dentist"
+    "Cardiology", "Dermatology", "Neurology", "Pediatrics", "Psychiatry",
+    "Orthopedics", "Ophthalmology", "Gynecology", "Urology" ,"General Medicine", "Family Medicine" , "Emergency Medicine" , "Radiology" , "Anesthesiology" , "Surgery"
   ];
 
   return (
@@ -177,7 +177,7 @@ export default function BrowseDoctors() {
             
             <div style={styles.searchHint}>
               <span style={styles.hintIcon}>💡</span>
-              <span style={styles.hintText}>Tip: You can search by Doctor ID (e.g., {doctors[0]?.userId?.slice(-6) || "123456"}) or Specialty name</span>
+              <span style={styles.hintText}>Tip: You can search by Doctor ID or Specialty name</span>
             </div>
           </div>
 

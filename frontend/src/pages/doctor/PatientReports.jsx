@@ -118,7 +118,7 @@ export default function PatientReports() {
 
         {/* Search Section */}
         <div style={styles.searchCard}>
-          <h3 style={styles.sectionTitle}>Find Patient Records</h3>
+          <h3 style={styles.searchSectionTitle}>Find Patient Records</h3>
           <div style={styles.searchContainer}>
             <div style={styles.searchInputWrapper}>
               <span style={styles.searchIcon}>🔍</span>
@@ -176,6 +176,26 @@ export default function PatientReports() {
                 </div>
               </div>
               
+              {/* Patient Name Section - Added */}
+              <div style={styles.patientNameSection}>
+                <div style={styles.patientNameWrapper}>
+                  <div style={styles.patientNameIcon}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                      <circle cx="12" cy="7" r="4" stroke="currentColor" strokeWidth="2"/>
+                    </svg>
+                  </div>
+                  <div style={styles.patientNameInfo}>
+                    <span style={styles.patientNameLabel}>Patient Name</span>
+                    <span style={styles.patientNameValue}>
+                      {profile.fullName || profile.name || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || "Not specified"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div style={styles.divider}></div>
+              
               <div style={styles.profileGrid}>
                 <div style={styles.profileItem}>
                   <span style={styles.profileLabel}>Date of Birth</span>
@@ -190,6 +210,10 @@ export default function PatientReports() {
                   <span style={styles.profileValue}>{profile.phone || "-"}</span>
                 </div>
                 <div style={styles.profileItem}>
+                  <span style={styles.profileLabel}>Email</span>
+                  <span style={styles.profileValue}>{profile.email || "-"}</span>
+                </div>
+                <div style={styles.profileItem}>
                   <span style={styles.profileLabel}>Address</span>
                   <span style={styles.profileValue}>{profile.address || "-"}</span>
                 </div>
@@ -198,7 +222,7 @@ export default function PatientReports() {
               <div style={styles.profileSection}>
                 <div style={styles.sectionHeader}>
                   <span style={styles.sectionIcon}>📋</span>
-                  <span style={styles.sectionTitle}>Medical History</span>
+                  <span style={styles.medicalHistoryTitle}>Medical History</span>
                 </div>
                 <div style={styles.sectionContent}>
                   {profile.medicalHistory || "No medical history recorded"}
@@ -301,7 +325,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",  // ADDED: Forces full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -415,8 +439,8 @@ const styles = {
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",  // ADDED: Takes full height
-    overflowY: "auto",  // ADDED: Enables scrolling within content
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
     display: "flex",
@@ -445,7 +469,7 @@ const styles = {
     marginBottom: "32px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
   },
-  sectionTitle: {
+  searchSectionTitle: {
     fontSize: "18px",
     fontWeight: "600",
     color: "#1a2c3e",
@@ -552,6 +576,51 @@ const styles = {
     fontSize: "12px",
     fontWeight: "500",
   },
+  // New styles for patient name section
+  patientNameSection: {
+    marginBottom: "24px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "16px",
+    padding: "20px",
+  },
+  patientNameWrapper: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+  },
+  patientNameIcon: {
+    width: "48px",
+    height: "48px",
+    backgroundColor: "#e8f5e9",
+    borderRadius: "24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#1e6f5c",
+  },
+  patientNameInfo: {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  patientNameLabel: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#5e7a93",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+  patientNameValue: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+  },
+  divider: {
+    height: "1px",
+    backgroundColor: "#eef2f6",
+    margin: "24px 0",
+  },
   profileGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
@@ -593,11 +662,11 @@ const styles = {
   sectionIcon: {
     fontSize: "16px",
   },
-  /*sectionTitle: {
+  medicalHistoryTitle: {
     fontSize: "14px",
     fontWeight: "600",
     color: "#1a2c3e",
-  },*/
+  },
   sectionContent: {
     backgroundColor: "#f8fafc",
     padding: "16px",

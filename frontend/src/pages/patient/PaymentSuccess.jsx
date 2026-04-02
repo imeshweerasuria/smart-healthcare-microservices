@@ -5,13 +5,23 @@ import { API, authHeaders } from "../../api/client";
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState("Confirming payment...");
+  const paymentId = searchParams.get("paymentId");
+  const sessionId = searchParams.get("session_id");
+
+  const [status, setStatus] = useState(
+    paymentId && sessionId
+      ? "Confirming payment..."
+      : "Missing payment confirmation details"
+  );
   const [isSuccess, setIsSuccess] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState(
+    paymentId && sessionId
+      ? ""
+      : "Required payment information is missing"
+  );
 
   useEffect(() => {
-    const paymentId = searchParams.get("paymentId");
-    const sessionId = searchParams.get("session_id");
+    if (!paymentId || !sessionId) return;
 
     const confirm = async () => {
       try {
@@ -31,14 +41,8 @@ export default function PaymentSuccess() {
       }
     };
 
-    if (paymentId && sessionId) {
-      confirm();
-    } else {
-      setStatus("Missing payment confirmation details");
-      setErrorMessage("Required payment information is missing");
-      setIsSuccess(false);
-    }
-  }, [searchParams]);
+    confirm();
+  }, [paymentId, sessionId]);
 
   return (
     <div style={styles.container}>
