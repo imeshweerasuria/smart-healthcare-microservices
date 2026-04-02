@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { login, saveSession } from "../../api/auth";
+import { GoogleLogin } from "@react-oauth/google";
+import { login, googleLogin, saveSession } from "../../api/auth";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export default function Login() {
     password: "",
   });
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleChange = (e) => {
     setForm((prev) => ({
@@ -18,19 +20,21 @@ export default function Login() {
     }));
   };
 
+  const redirectByRole = (data) => {
+    if (data.role === "PATIENT") navigate("/patient");
+    else if (data.role === "DOCTOR") navigate("/doctor");
+    else if (data.role === "ADMIN") navigate("/admin");
+    else navigate("/");
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       setLoading(true);
       const data = await login(form);
-
       saveSession(data);
-
-      if (data.role === "PATIENT") navigate("/patient");
-      else if (data.role === "DOCTOR") navigate("/doctor");
-      else if (data.role === "ADMIN") navigate("/admin");
-      else navigate("/");
+      redirectByRole(data);
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Login failed");
@@ -39,15 +43,38 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      if (!credentialResponse?.credential) {
+        alert("Google login failed");
+        return;
+      }
+
+      setGoogleLoading(true);
+
+      const data = await googleLogin(credentialResponse.credential);
+      saveSession(data);
+      redirectByRole(data);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Google login failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    alert("Google login failed");
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        {/* Header with medical branding */}
         <div style={styles.header}>
           <div style={styles.brand}>
             <div style={styles.brandIcon}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15 8H22L16 12L19 18L12 14L5 18L8 12L2 8H9L12 2Z" fill="currentColor"/>
+                <path d="M12 2L15 8H22L16 12L19 18L12 14L5 18L8 12L2 8H9L12 2Z" fill="currentColor" />
               </svg>
             </div>
             <div style={styles.brandText}>
@@ -58,7 +85,6 @@ export default function Login() {
           <p style={styles.subtitle}>Sign in to manage appointments</p>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.inputGroup}>
             <label style={styles.label}>Email address</label>
@@ -86,10 +112,10 @@ export default function Login() {
             />
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading} 
-            style={loading ? {...styles.button, ...styles.buttonDisabled} : styles.button}
+          <button
+            type="submit"
+            disabled={loading || googleLoading}
+            style={loading || googleLoading ? { ...styles.button, ...styles.buttonDisabled } : styles.button}
           >
             {loading ? (
               <>
@@ -102,7 +128,31 @@ export default function Login() {
           </button>
         </form>
 
-        {/* Footer */}
+        <div style={styles.dividerWrap}>
+          <div style={styles.divider}></div>
+          <span style={styles.dividerText}>or</span>
+          <div style={styles.divider}></div>
+        </div>
+
+        <div style={styles.googleWrap}>
+          {googleLoading ? (
+            <button disabled style={{ ...styles.googleLoadingBtn, ...styles.buttonDisabled }}>
+              <span style={styles.spinner}></span>
+              Signing in with Google...
+            </button>
+          ) : (
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_blue"
+              size="large"
+              text="continue_with"
+              shape="pill"
+              width="376"
+            />
+          )}
+        </div>
+
         <div style={styles.footer}>
           <p style={styles.registerText}>
             Don't have an account?
@@ -118,7 +168,6 @@ export default function Login() {
   );
 }
 
-// Professional medical-themed styles
 const styles = {
   container: {
     position: "fixed",
@@ -144,7 +193,6 @@ const styles = {
     borderRadius: "32px",
     boxShadow: "0 20px 35px -12px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.02)",
     overflow: "hidden",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
     margin: "20px",
   },
   header: {
@@ -165,7 +213,6 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
     color: "#ffffff",
-    fontSize: "20px",
   },
   brandText: {
     fontSize: "24px",
@@ -212,7 +259,6 @@ const styles = {
     borderRadius: "16px",
     backgroundColor: "#ffffff",
     color: "#1a2c3e",
-    transition: "all 0.2s ease",
     outline: "none",
     boxSizing: "border-box",
   },
@@ -227,9 +273,23 @@ const styles = {
     border: "none",
     borderRadius: "24px",
     cursor: "pointer",
-    transition: "all 0.2s ease",
     marginTop: "8px",
-    marginBottom: "24px",
+    marginBottom: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+  },
+  googleLoadingBtn: {
+    width: "100%",
+    padding: "14px 24px",
+    fontSize: "16px",
+    fontWeight: "600",
+    fontFamily: "inherit",
+    color: "#ffffff",
+    backgroundColor: "#4285F4",
+    border: "none",
+    borderRadius: "24px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -249,10 +309,31 @@ const styles = {
     borderTopColor: "#ffffff",
     animation: "spin 0.6s linear infinite",
   },
+  dividerWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "0 32px",
+    marginBottom: "20px",
+  },
+  divider: {
+    flex: 1,
+    height: "1px",
+    backgroundColor: "#e2e8f0",
+  },
+  dividerText: {
+    fontSize: "13px",
+    color: "#8aa0b3",
+  },
+  googleWrap: {
+    padding: "0 32px 8px 32px",
+    display: "flex",
+    justifyContent: "center",
+  },
   footer: {
     padding: "0 32px 32px 32px",
     borderTop: "1px solid #eef2f6",
-    marginTop: "8px",
+    marginTop: "12px",
   },
   registerText: {
     textAlign: "center",
@@ -265,7 +346,6 @@ const styles = {
     textDecoration: "none",
     fontWeight: "600",
     marginLeft: "4px",
-    transition: "color 0.2s",
   },
   medicalBadge: {
     display: "flex",
@@ -277,25 +357,24 @@ const styles = {
   },
 };
 
-// Add keyframes animation for spinner
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
-  
+
   input:focus {
     border-color: #1e6f5c !important;
     box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
     outline: none;
   }
-  
+
   button:hover:not(:disabled) {
     background-color: #155a4b !important;
     transform: translateY(-1px);
     box-shadow: 0 8px 16px -6px rgba(30, 111, 92, 0.25);
   }
-  
+
   a:hover {
     color: #155a4b !important;
     text-decoration: underline;

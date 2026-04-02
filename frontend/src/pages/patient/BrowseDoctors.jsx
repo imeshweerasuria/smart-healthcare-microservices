@@ -60,9 +60,21 @@ export default function BrowseDoctors() {
   ];
 
   const specialties = [
-    "Cardiology", "Dermatology", "Neurology", "Pediatrics", "Psychiatry",
-    "Orthopedics", "Ophthalmology", "Gynecology", "Urology", "General Medicine", 
-    "Family Medicine", "Emergency Medicine", "Radiology", "Anesthesiology", "Surgery"
+    "Cardiology",
+    "Dermatology",
+    "Neurology",
+    "Pediatrics",
+    "Psychiatry",
+    "Orthopedics",
+    "Ophthalmology",
+    "Gynecology",
+    "Urology",
+    "General Medicine",
+    "Family Medicine",
+    "Emergency Medicine",
+    "Radiology",
+    "Anesthesiology",
+    "Surgery",
   ];
 
   return (

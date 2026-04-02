@@ -1,10 +1,13 @@
 const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 const User = require("../models/User");
 const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
 
 const router = express.Router();
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 const signToken = (user) =>
   jwt.sign(
@@ -44,6 +47,7 @@ router.post("/register", async (req, res) => {
       phone: phone || "",
       passwordHash,
       role,
+      authProvider: "LOCAL",
       doctorVerified: role === "DOCTOR" ? false : true,
       isDisabled: false,
     });
@@ -88,6 +92,11 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ message: "Doctor not verified yet" });
     }
 
+    // prevent login if Google account
+    if (!user.passwordHash) {
+      return res.status(400).json({ message: "This account uses Google sign-in" });
+    }
+
     const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
       return res.status(401).json({ message: "Invalid credentials" });
@@ -111,6 +120,79 @@ router.post("/login", async (req, res) => {
   }
 });
 
+// GOOGLE LOGIN
+router.post("/google-login", async (req, res) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res.status(400).json({ message: "Google credential is required" });
+    }
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: "Invalid Google account" });
+    }
+
+    const email = payload.email.toLowerCase();
+    const name = payload.name || "Google User";
+    const googleId = payload.sub || "";
+    const picture = payload.picture || "";
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        phone: "",
+        passwordHash: "",
+        googleId,
+        picture,
+        role: "PATIENT",
+        authProvider: "GOOGLE",
+        doctorVerified: true,
+        isDisabled: false,
+      });
+    } else {
+      if (!user.googleId) user.googleId = googleId;
+      if (!user.picture) user.picture = picture;
+      if (!user.authProvider) user.authProvider = "LOCAL";
+      await user.save();
+    }
+
+    if (user.isDisabled) {
+      return res.status(403).json({ message: "Account is disabled" });
+    }
+
+    if (user.role === "DOCTOR" && !user.doctorVerified) {
+      return res.status(403).json({ message: "Doctor not verified yet" });
+    }
+
+    const token = signToken(user);
+
+    res.json({
+      token,
+      role: user.role,
+      userId: user._id,
+      email: user.email,
+      phone: user.phone || "",
+      name: user.name,
+      doctorVerified: user.doctorVerified,
+      isDisabled: user.isDisabled,
+    });
+  } catch (e) {
+    console.error("Google login error:", e);
+    res.status(500).json({ message: "Google login failed" });
+  }
+});
+
 // GET CURRENT USER
 router.get("/me", requireAuth, async (req, res) => {
   try {
@@ -123,9 +205,7 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 });
 
-// INTERNAL CONTACT LOOKUP FOR OTHER MICROSERVICES
-// NOTE: This is left open so appointment-service can call it directly.
-// In production, protect this with an internal secret/header.
+// INTERNAL CONTACT LOOKUP (for other microservices)
 router.get("/users/:id/contact", async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select(
@@ -168,7 +248,9 @@ router.get("/doctors/pending", requireAuth, requireRole("ADMIN"), async (req, re
     const doctors = await User.find({
       role: "DOCTOR",
       doctorVerified: false,
-    }).select("-passwordHash").sort({ createdAt: -1 });
+    })
+      .select("-passwordHash")
+      .sort({ createdAt: -1 });
 
     res.json(doctors);
   } catch (e) {
@@ -182,6 +264,7 @@ router.patch("/doctors/:id/verify", requireAuth, requireRole("ADMIN"), async (re
   try {
     const doctor = await User.findById(req.params.id);
     if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
     if (doctor.role !== "DOCTOR") {
       return res.status(400).json({ message: "User is not a doctor" });
     }
