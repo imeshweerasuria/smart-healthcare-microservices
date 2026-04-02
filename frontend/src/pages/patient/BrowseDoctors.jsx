@@ -29,9 +29,10 @@ export default function BrowseDoctors() {
         const searchLower = searchValue.toLowerCase().trim();
 
         const filteredDoctors = allDoctors.filter((doctor) => {
+          const nameMatch = doctor.name?.toLowerCase().includes(searchLower);
           const specialtyMatch = doctor.specialty?.toLowerCase().includes(searchLower);
           const idMatch = doctor.userId?.toLowerCase().includes(searchLower);
-          return specialtyMatch || idMatch;
+          return nameMatch || specialtyMatch || idMatch;
         });
 
         setDoctors(filteredDoctors);
@@ -59,6 +60,7 @@ export default function BrowseDoctors() {
     { path: "/patient/payments", label: "Payments", icon: "💰" },
   ];
 
+  // ✅ Merged & cleaned specialties array
   const specialties = [
     "Cardiology",
     "Dermatology",
@@ -153,7 +155,7 @@ export default function BrowseDoctors() {
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by specialty (e.g., Cardiologist) or Doctor ID"
+                  placeholder="Search by doctor name, specialty, or Doctor ID"
                   style={styles.searchInput}
                   onKeyDown={(e) => e.key === "Enter" && load(searchTerm)}
                   className="search-input"
@@ -202,10 +204,11 @@ export default function BrowseDoctors() {
               ))}
             </div>
 
+            {/* ✅ Updated search hint with dynamic doctor ID example */}
             <div style={styles.searchHint}>
               <span style={styles.hintIcon}>💡</span>
               <span style={styles.hintText}>
-                Tip: You can search by Doctor ID (e.g., {doctors[0]?.userId?.slice(-6) || "123456"}) or Specialty name
+                Tip: Search by doctor name, specialty, or Doctor ID
               </span>
             </div>
           </div>
@@ -220,7 +223,7 @@ export default function BrowseDoctors() {
             <div style={styles.emptyState}>
               <div style={styles.emptyIcon}>👨‍⚕️</div>
               <p style={styles.emptyText}>No doctors found</p>
-              <p style={styles.emptySubtext}>Try searching by specialty name or doctor ID</p>
+              <p style={styles.emptySubtext}>Try searching by name, specialty, or doctor ID</p>
             </div>
           ) : (
             <>
@@ -238,10 +241,14 @@ export default function BrowseDoctors() {
                   >
                     <div style={styles.doctorHeader}>
                       <div style={styles.doctorAvatar}>
-                        {d.specialty?.charAt(0) || "D"}
+                        {(d.name || d.specialty || "D").charAt(0)}
                       </div>
 
                       <div style={styles.doctorHeaderInfo}>
+                        <div style={styles.doctorName}>
+                          {d.name || "Doctor Name Not Available"}
+                        </div>
+
                         <div style={styles.doctorSpecialty}>
                           {d.specialty || "General Physician"}
                         </div>
@@ -305,13 +312,7 @@ export default function BrowseDoctors() {
                     <Link to={`/patient/book/${d.userId}`} style={styles.bookBtn} className="book-btn">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path
-                          d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3.89543 4 5 4Z"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M12 13H12.01M12 16H12.01M15 13H15.01M9 13H9.01"
+                          d="M8 2V5M16 2V5M3 9H21M5 4H19C20.1046 4 21 4.89543 21 6V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V6C3 4.89543 3 4 5 4Z"
                           stroke="currentColor"
                           strokeWidth="2"
                           strokeLinecap="round"
@@ -323,7 +324,6 @@ export default function BrowseDoctors() {
                 ))}
               </div>
 
-              {/* Footer Stats */}
               {doctors.length > 0 && (
                 <div style={styles.footerStats}>
                   Showing {doctors.length} doctor{doctors.length !== 1 ? "s" : ""} available
@@ -336,7 +336,9 @@ export default function BrowseDoctors() {
 
       <style>{`
         @keyframes spin {
-          to { transform: rotate(360deg); }
+          to {
+            transform: rotate(360deg);
+          }
         }
 
         @keyframes fadeSlideUp {
@@ -765,11 +767,17 @@ const styles = {
   doctorHeaderInfo: {
     flex: 1,
   },
-  doctorSpecialty: {
+  doctorName: {
     fontSize: "18px",
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#1a2c3e",
     marginBottom: "4px",
+  },
+  doctorSpecialty: {
+    fontSize: "15px",
+    fontWeight: "600",
+    color: "#1e6f5c",
+    marginBottom: "6px",
   },
   doctorId: {
     fontSize: "12px",

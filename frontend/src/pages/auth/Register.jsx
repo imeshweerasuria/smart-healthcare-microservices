@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { register, saveSession } from "../../api/auth";
+import { GoogleLogin } from "@react-oauth/google";
+import { register, saveSession, googleLogin, clearSession } from "../../api/auth";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -13,6 +14,32 @@ export default function Register() {
     role: "PATIENT",
   });
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const goByRoleAfterRegister = (data) => {
+    // PATIENT and ADMIN can enter immediately
+    if (data.role === "PATIENT") {
+      navigate("/patient");
+      return;
+    }
+
+    if (data.role === "ADMIN") {
+      navigate("/admin");
+      return;
+    }
+
+    // DOCTOR must wait for admin verification
+    if (data.role === "DOCTOR" && !data.doctorVerified) {
+      clearSession();
+      alert("Doctor account created successfully. Please wait until an admin verifies your account before logging in.");
+      navigate("/login");
+      return;
+    }
+
+    // fallback
+    if (data.role === "DOCTOR") navigate("/doctor");
+    else navigate("/");
+  };
 
   const handleChange = (e) => {
     setForm((prev) => ({
@@ -28,11 +55,7 @@ export default function Register() {
       setLoading(true);
       const data = await register(form);
       saveSession(data);
-
-      if (data.role === "PATIENT") navigate("/patient");
-      else if (data.role === "DOCTOR") navigate("/doctor");
-      else if (data.role === "ADMIN") navigate("/admin");
-      else navigate("/");
+      goByRoleAfterRegister(data);
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Register failed");
@@ -41,10 +64,33 @@ export default function Register() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setGoogleLoading(true);
+
+      const data = await googleLogin({
+        credential: credentialResponse.credential,
+        role: form.role,
+      });
+
+      saveSession(data);
+      goByRoleAfterRegister(data);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Google signup failed");
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    alert("Google signup failed");
+  };
+
   return (
     <div style={styles.container}>
       <div style={styles.card}>
-        {/* Header with medical branding */}
+        {/* Header */}
         <div style={styles.header}>
           <div style={styles.brand}>
             <div style={styles.brandIcon}>
@@ -115,9 +161,9 @@ export default function Register() {
 
           <div style={styles.inputGroup}>
             <label style={styles.label}>Account type</label>
-            <select 
-              name="role" 
-              value={form.role} 
+            <select
+              name="role"
+              value={form.role}
               onChange={handleChange}
               style={styles.select}
             >
@@ -127,10 +173,10 @@ export default function Register() {
             </select>
           </div>
 
-          <button 
-            type="submit" 
-            disabled={loading} 
-            style={loading ? {...styles.button, ...styles.buttonDisabled} : styles.button}
+          <button
+            type="submit"
+            disabled={loading}
+            style={loading ? { ...styles.button, ...styles.buttonDisabled } : styles.button}
           >
             {loading ? (
               <>
@@ -142,6 +188,37 @@ export default function Register() {
             )}
           </button>
         </form>
+
+        {/* Divider */}
+        <div style={styles.dividerWrap}>
+          <div style={styles.divider}></div>
+          <span style={styles.dividerText}>or continue with</span>
+          <div style={styles.divider}></div>
+        </div>
+
+        {/* Google Register */}
+        <div style={styles.googleSection}>
+          <div style={styles.googleRoleHint}>
+            <span>Sign up with Google as:</span>
+            <span style={styles.roleBadge}>{form.role}</span>
+          </div>
+
+          <div style={styles.googleButtonWrap}>
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              theme="filled_blue"
+              size="large"
+              text="continue_with"
+              shape="pill"
+              width="100%"
+            />
+          </div>
+
+          {googleLoading && (
+            <div style={styles.googleLoadingText}>Signing up with Google...</div>
+          )}
+        </div>
 
         {/* Footer */}
         <div style={styles.footer}>
@@ -159,7 +236,6 @@ export default function Register() {
   );
 }
 
-// Professional medical-themed styles
 const styles = {
   container: {
     position: "fixed",
@@ -228,7 +304,7 @@ const styles = {
   subtitle: {
     fontSize: "15px",
     color: "#5e7a93",
-    margin: "0 0 32px 0",
+    margin: "0 0 24px 0",
     lineHeight: "1.4",
   },
   form: {
@@ -304,10 +380,56 @@ const styles = {
     borderTopColor: "#ffffff",
     animation: "spin 0.6s linear infinite",
   },
+  dividerWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "0 32px 20px 32px",
+  },
+  divider: {
+    flex: 1,
+    height: "1px",
+    backgroundColor: "#e2e8f0",
+  },
+  dividerText: {
+    fontSize: "12px",
+    color: "#8aa0b3",
+    whiteSpace: "nowrap",
+  },
+  googleSection: {
+    padding: "0 32px 20px 32px",
+  },
+  googleRoleHint: {
+    fontSize: "13px",
+    color: "#5e7a93",
+    marginBottom: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+  },
+  roleBadge: {
+    display: "inline-block",
+    padding: "4px 10px",
+    borderRadius: "999px",
+    backgroundColor: "#e8f5e9",
+    color: "#1e6f5c",
+    fontWeight: "600",
+    fontSize: "12px",
+  },
+  googleButtonWrap: {
+    display: "flex",
+    justifyContent: "center",
+  },
+  googleLoadingText: {
+    marginTop: "10px",
+    textAlign: "center",
+    fontSize: "13px",
+    color: "#5e7a93",
+  },
   footer: {
     padding: "0 32px 32px 32px",
     borderTop: "1px solid #eef2f6",
-    marginTop: "8px",
   },
   registerText: {
     textAlign: "center",
@@ -329,10 +451,10 @@ const styles = {
     gap: "16px",
     fontSize: "12px",
     color: "#8aa0b3",
+    flexWrap: "wrap",
   },
 };
 
-// Add keyframes animation for spinner
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes spin {
