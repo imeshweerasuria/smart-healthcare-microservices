@@ -92,6 +92,7 @@ router.post("/login", async (req, res) => {
       return res.status(403).json({ message: "Doctor not verified yet" });
     }
 
+    // prevent login if Google account
     if (!user.passwordHash) {
       return res.status(400).json({ message: "This account uses Google sign-in" });
     }
@@ -160,15 +161,9 @@ router.post("/google-login", async (req, res) => {
         isDisabled: false,
       });
     } else {
-      if (!user.googleId) {
-        user.googleId = googleId;
-      }
-      if (!user.picture) {
-        user.picture = picture;
-      }
-      if (!user.authProvider) {
-        user.authProvider = "LOCAL";
-      }
+      if (!user.googleId) user.googleId = googleId;
+      if (!user.picture) user.picture = picture;
+      if (!user.authProvider) user.authProvider = "LOCAL";
       await user.save();
     }
 
@@ -210,6 +205,32 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 });
 
+// INTERNAL CONTACT LOOKUP (for other microservices)
+router.get("/users/:id/contact", async (req, res) => {
+  try {
+    const user = await User.findById(req.params.id).select(
+      "_id name email phone role doctorVerified isDisabled"
+    );
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    res.json({
+      userId: user._id.toString(),
+      name: user.name,
+      email: user.email || "",
+      phone: user.phone || "",
+      role: user.role,
+      doctorVerified: user.doctorVerified,
+      isDisabled: user.isDisabled,
+    });
+  } catch (e) {
+    console.error("Get user contact error:", e);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
 // ADMIN - list all users
 router.get("/users", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
@@ -227,7 +248,9 @@ router.get("/doctors/pending", requireAuth, requireRole("ADMIN"), async (req, re
     const doctors = await User.find({
       role: "DOCTOR",
       doctorVerified: false,
-    }).select("-passwordHash").sort({ createdAt: -1 });
+    })
+      .select("-passwordHash")
+      .sort({ createdAt: -1 });
 
     res.json(doctors);
   } catch (e) {
@@ -241,6 +264,7 @@ router.patch("/doctors/:id/verify", requireAuth, requireRole("ADMIN"), async (re
   try {
     const doctor = await User.findById(req.params.id);
     if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
     if (doctor.role !== "DOCTOR") {
       return res.status(400).json({ message: "User is not a doctor" });
     }
