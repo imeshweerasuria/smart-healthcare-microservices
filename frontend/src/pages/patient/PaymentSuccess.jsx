@@ -44,25 +44,44 @@ export default function PaymentSuccess() {
     confirm();
   }, [paymentId, sessionId]);
 
+  // Show clean loading state while confirming
+  if (status === "Confirming payment..." && !isSuccess && !errorMessage) {
+    return (
+      <div style={styles.container}>
+        <div style={styles.content}>
+          <div style={styles.card}>
+            <div style={styles.loadingIcon}>
+              <div style={styles.spinner}></div>
+            </div>
+            <h1 style={styles.loadingTitle}>Confirming Payment</h1>
+            <p style={styles.loadingMessage}>
+              Please wait while we verify your payment with Stripe...
+            </p>
+            <div style={styles.loadingHint}>
+              <span style={styles.hintIcon}>⏳</span>
+              <span>This should only take a few seconds</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show result state (success or failure)
   return (
     <div style={styles.container}>
       <div style={styles.content}>
-        {/* Result Card */}
         <div style={styles.card}>
-          {/* Icon based on status */}
           <div style={isSuccess ? styles.successIcon : styles.errorIcon}>
             {isSuccess ? "✓" : "✗"}
           </div>
 
-          {/* Title */}
           <h1 style={isSuccess ? styles.successTitle : styles.errorTitle}>
             {isSuccess ? "Payment Successful!" : "Payment Failed"}
           </h1>
 
-          {/* Status Message */}
           <p style={styles.statusMessage}>{status}</p>
 
-          {/* Error Details (if any) */}
           {errorMessage && !isSuccess && (
             <div style={styles.errorBox}>
               <div style={styles.errorBoxIcon}>⚠️</div>
@@ -73,7 +92,6 @@ export default function PaymentSuccess() {
             </div>
           )}
 
-          {/* Payment Details (if success) */}
           {isSuccess && (
             <div style={styles.successBox}>
               <div style={styles.successBoxIcon}>✅</div>
@@ -86,7 +104,6 @@ export default function PaymentSuccess() {
             </div>
           )}
 
-          {/* Action Buttons */}
           <div style={styles.actionButtons}>
             <Link to="/patient/appointments" style={styles.primaryButton}>
               <span>📅</span>
@@ -98,7 +115,6 @@ export default function PaymentSuccess() {
             </Link>
           </div>
 
-          {/* Help Text */}
           <div style={styles.helpText}>
             <span style={styles.helpIcon}>ℹ️</span>
             <span>
@@ -143,7 +159,51 @@ const styles = {
     padding: "48px 32px",
     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.04)",
     textAlign: "center",
-    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+  loadingIcon: {
+    width: "80px",
+    height: "80px",
+    backgroundColor: "#e3f2fd",
+    borderRadius: "40px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    margin: "0 auto 24px",
+  },
+  spinner: {
+    width: "40px",
+    height: "40px",
+    border: "3px solid #e0e0e0",
+    borderTop: "3px solid #1e6f5c",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  },
+  loadingTitle: {
+    fontSize: "28px",
+    fontWeight: "600",
+    color: "#1e6f5c",
+    margin: "0 0 16px 0",
+    letterSpacing: "-0.5px",
+  },
+  loadingMessage: {
+    fontSize: "16px",
+    color: "#5e7a93",
+    margin: "0 0 24px 0",
+    lineHeight: 1.5,
+  },
+  loadingHint: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "8px",
+    padding: "12px",
+    backgroundColor: "#f8fafc",
+    borderRadius: "12px",
+    fontSize: "13px",
+    color: "#5e7a93",
+  },
+  hintIcon: {
+    fontSize: "16px",
   },
   successIcon: {
     width: "80px",
@@ -261,12 +321,12 @@ const styles = {
     borderRadius: "12px",
     fontSize: "14px",
     fontWeight: "600",
-    transition: "all 0.2s ease",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
     minWidth: "180px",
+    cursor: "pointer",
   },
   secondaryButton: {
     flex: 1,
@@ -278,12 +338,12 @@ const styles = {
     fontSize: "14px",
     fontWeight: "600",
     border: "1.5px solid #e2e8f0",
-    transition: "all 0.2s ease",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     gap: "8px",
     minWidth: "180px",
+    cursor: "pointer",
   },
   helpText: {
     display: "flex",
@@ -301,58 +361,40 @@ const styles = {
   },
 };
 
-// Add global styles for hover effects and remove parent layout constraints
-const styleSheet = document.createElement("style");
-styleSheet.textContent = `
-  @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  
-  .card {
-    animation: fadeIn 0.5s ease-out;
-  }
-  
-  a:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-  
-  .primary-button:hover {
-    background-color: #155a4b;
-    box-shadow: 0 4px 12px rgba(30, 111, 92, 0.2);
-  }
-  
-  .secondary-button:hover {
-    border-color: #1e6f5c;
-    background-color: #f8fafc;
-    transform: translateY(-2px);
-  }
-  
-  /* Remove any sidebar or layout containers when this component mounts */
-  body {
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden;
-  }
-  
-  /* Hide any sidebar elements */
-  [class*="sidebar"], 
-  [class*="Sidebar"],
-  [class*="layout"],
-  [class*="Layout"],
-  [class*="dashboard"],
-  [class*="Dashboard"] {
-    display: none !important;
-  }
-`;
-
+// Add global styles for animations
 if (typeof document !== "undefined") {
+  const styleSheet = document.createElement("style");
+  styleSheet.textContent = `
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    div {
+      animation: fadeIn 0.4s ease-out;
+    }
+    
+    a:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+  `;
   document.head.appendChild(styleSheet);
 }
