@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
-import { register, saveSession, googleLogin } from "../../api/auth";
+import { register, saveSession, googleLogin, clearSession } from "../../api/auth";
 
 export default function Register() {
   const navigate = useNavigate();
@@ -16,10 +16,28 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const goByRole = (role) => {
-    if (role === "PATIENT") navigate("/patient");
-    else if (role === "DOCTOR") navigate("/doctor");
-    else if (role === "ADMIN") navigate("/admin");
+  const goByRoleAfterRegister = (data) => {
+    // PATIENT and ADMIN can enter immediately
+    if (data.role === "PATIENT") {
+      navigate("/patient");
+      return;
+    }
+
+    if (data.role === "ADMIN") {
+      navigate("/admin");
+      return;
+    }
+
+    // DOCTOR must wait for admin verification
+    if (data.role === "DOCTOR" && !data.doctorVerified) {
+      clearSession();
+      alert("Doctor account created successfully. Please wait until an admin verifies your account before logging in.");
+      navigate("/login");
+      return;
+    }
+
+    // fallback
+    if (data.role === "DOCTOR") navigate("/doctor");
     else navigate("/");
   };
 
@@ -37,7 +55,7 @@ export default function Register() {
       setLoading(true);
       const data = await register(form);
       saveSession(data);
-      goByRole(data.role);
+      goByRoleAfterRegister(data);
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Register failed");
@@ -56,7 +74,7 @@ export default function Register() {
       });
 
       saveSession(data);
-      goByRole(data.role);
+      goByRoleAfterRegister(data);
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.message || "Google signup failed");
@@ -178,7 +196,7 @@ export default function Register() {
           <div style={styles.divider}></div>
         </div>
 
-        {/* Google Register - Moved below register button */}
+        {/* Google Register */}
         <div style={styles.googleSection}>
           <div style={styles.googleRoleHint}>
             <span>Sign up with Google as:</span>
