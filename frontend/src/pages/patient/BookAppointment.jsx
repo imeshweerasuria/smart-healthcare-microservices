@@ -60,11 +60,16 @@ export default function BookAppointment() {
         return;
       }
 
+      if (!reason.trim()) {
+        showToast("Reason for visit is required", "error");
+        return;
+      }
+
       setLoading(true);
 
       await axios.post(
         `${API.appointment}/appointments`,
-        { doctorId, slotNumber: datetime, reason },
+        { doctorId, slotNumber: Number(datetime), reason: reason.trim() },
         { headers: authHeaders() }
       );
 
@@ -261,7 +266,7 @@ export default function BookAppointment() {
           <div style={styles.formGroup}>
             <label style={styles.label}>
               <span style={styles.labelIcon}>🎯</span>
-              Select Slot
+              Select Slot <span style={{ color: "#d32f2f" }}>*</span>
             </label>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((slotNumber) => {
@@ -301,7 +306,7 @@ export default function BookAppointment() {
           <div style={styles.formGroup}>
             <label style={styles.label}>
               <span style={styles.labelIcon}>📝</span>
-              Reason for Visit
+              Reason for Visit <span style={{ color: "#d32f2f" }}>*</span>
             </label>
             <textarea
               value={reason}
@@ -315,8 +320,8 @@ export default function BookAppointment() {
           <div style={styles.formActions}>
             <button 
               onClick={book} 
-              disabled={loading || !datetime}
-              style={loading || !datetime ? styles.bookBtnDisabled : styles.bookBtn}
+              disabled={loading || !datetime || !reason.trim()}
+              style={loading || !datetime || !reason.trim() ? styles.bookBtnDisabled : styles.bookBtn}
             >
               {loading ? (
                 <>

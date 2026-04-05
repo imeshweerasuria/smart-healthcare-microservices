@@ -9,6 +9,7 @@ const axios = require("axios");
 const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
 const PATIENT_PUBLIC_BASE =
  process.env.PATIENT_PUBLIC_BASE || "http://localhost:4002";
+const AUTH_URL = process.env.AUTH_URL || "http://localhost:4001";
 
 const router = express.Router();
 
@@ -50,14 +51,45 @@ function serializeReport(report) {
  };
 }
 
+async function getUserContact(userId, authHeader) {
+  try {
+    const res = await axios.get(`${AUTH_URL}/auth/users/${userId}/contact`, {
+      headers: authHeader ? { Authorization: authHeader } : {},
+    });
+    return res.data;
+  } catch (err) {
+    console.error(
+      `Failed to fetch user contact for ${userId}:`,
+      err.response?.data || err.message
+    );
+    return null;
+  }
+}
+
+function serializeProfile(profile, user) {
+  const data = profile.toObject ? profile.toObject() : profile;
+
+  return {
+    ...data,
+    name: user?.name || "",
+    fullName: user?.name || "",
+    email: user?.email || "",
+    phone: data.phone || user?.phone || "",
+  };
+}
+
 // Get my profile
 router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
  try {
    const userId = req.user.userId;
    let profile = await PatientProfile.findOne({ userId });
    if (!profile) profile = await PatientProfile.create({ userId });
-   res.json(profile);
+
+   const user = await getUserContact(userId, req.headers.authorization);
+
+   res.json(serializeProfile(profile, user));
  } catch (e) {
+   console.error("Get my profile error:", e.message);
    res.status(500).json({ message: "Server error" });
  }
 });
@@ -90,8 +122,11 @@ router.put("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
      : profile.chronicConditions;
 
    await profile.save();
-   res.json(profile);
+   
+   const user = await getUserContact(userId, req.headers.authorization);
+   res.json(serializeProfile(profile, user));
  } catch (e) {
+   console.error("Update profile error:", e.message);
    res.status(500).json({ message: "Server error" });
  }
 });
@@ -127,6 +162,7 @@ router.post(
        report: serializeReport(lastReport),
      });
    } catch (e) {
+     console.error("Upload report error:", e.message);
      res.status(500).json({ message: "Upload failed" });
    }
  }
@@ -141,6 +177,7 @@ router.get("/me/reports", requireAuth, requireRole("PATIENT"), async (req, res) 
 
    res.json((profile.reports || []).map(serializeReport));
  } catch (e) {
+   console.error("Get my reports error:", e.message);
    res.status(500).json({ message: "Server error" });
  }
 });
@@ -175,6 +212,7 @@ router.delete(
 
      res.json({ message: "Report deleted successfully" });
    } catch (e) {
+     console.error("Delete report error:", e.message);
      res.status(500).json({ message: "Server error" });
    }
  }
@@ -192,8 +230,14 @@ router.get(
        return res.status(404).json({ message: "Patient profile not found" });
      }
 
-     res.json(profile);
+     const user = await getUserContact(
+       req.params.patientId,
+       req.headers.authorization
+     );
+
+     res.json(serializeProfile(profile, user));
    } catch (e) {
+     console.error("Get patient full profile error:", e.message);
      res.status(500).json({ message: "Server error" });
    }
  }
@@ -213,6 +257,7 @@ router.get(
 
      res.json((profile.reports || []).map(serializeReport));
    } catch (e) {
+     console.error("Get patient reports error:", e.message);
      res.status(500).json({ message: "Server error" });
    }
  }
@@ -226,6 +271,7 @@ router.get("/me/prescriptions", requireAuth, requireRole("PATIENT"), async (req,
    });
    res.json(r.data);
  } catch (e) {
+   console.error("Get prescriptions error:", e.message);
    res.status(500).json({ message: "Failed to fetch prescriptions" });
  }
 });

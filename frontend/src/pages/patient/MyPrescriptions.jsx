@@ -59,6 +59,143 @@ export default function MyPrescriptions() {
     });
   };
 
+  const escapeHtml = (text = "") => {
+    return String(text)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  };
+
+  const printPrescription = (p) => {
+    const printWindow = window.open("", "_blank", "width=900,height=700");
+
+    if (!printWindow) {
+      alert("Please allow pop-ups to print the prescription");
+      return;
+    }
+
+    const html = `
+      <html>
+        <head>
+          <title>Prescription - MediBook</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              padding: 40px;
+              color: #222;
+              line-height: 1.6;
+            }
+            h1 {
+              color: #1e6f5c;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #1e6f5c;
+              padding-bottom: 10px;
+            }
+            h2, h3 {
+              margin-bottom: 12px;
+              color: #1a2c3e;
+            }
+            .section {
+              margin-bottom: 20px;
+            }
+            .box {
+              border: 1px solid #ddd;
+              border-radius: 8px;
+              padding: 12px;
+              white-space: pre-wrap;
+              background-color: #f9f9f9;
+            }
+            hr {
+              margin: 24px 0;
+              border: none;
+              border-top: 1px solid #ddd;
+            }
+            .label {
+              font-weight: bold;
+              color: #5e7a93;
+              margin-bottom: 5px;
+            }
+            .value {
+              margin-left: 0;
+            }
+            .header {
+              margin-bottom: 30px;
+            }
+            .footer {
+              margin-top: 40px;
+              font-size: 12px;
+              color: #999;
+              text-align: center;
+            }
+          </style>
+        </head>
+        <body>
+          <h1>🏥 MediBook Prescription</h1>
+
+          <div class="section">
+            <div class="label">Date:</div>
+            <div class="value">${escapeHtml(formatDate(p.createdAt))}</div>
+          </div>
+
+          <div class="section">
+            <div class="label">Doctor ID:</div>
+            <div class="value">${escapeHtml(p.doctorId || "N/A")}</div>
+          </div>
+
+          ${
+            p.appointmentId
+              ? `<div class="section">
+                  <div class="label">Appointment ID:</div>
+                  <div class="value">${escapeHtml(p.appointmentId)}</div>
+                </div>`
+              : ""
+          }
+
+          <hr />
+
+          <div class="section">
+            <h3>💊 Medications</h3>
+            <div class="box">${escapeHtml(p.meds || "")}</div>
+          </div>
+
+          ${
+            p.notes
+              ? `
+            <div class="section">
+              <h3>📝 Notes & Instructions</h3>
+              <div class="box">${escapeHtml(p.notes)}</div>
+            </div>
+          `
+              : ""
+          }
+
+          <hr />
+          
+          <div class="section">
+            <div class="label">Prescription ID:</div>
+            <div class="value">${escapeHtml(p._id || "")}</div>
+          </div>
+
+          <div class="footer">
+            This is a computer-generated prescription. No signature required.
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+
+    setTimeout(() => {
+      printWindow.print();
+      printWindow.close();
+    }, 300);
+  };
+
   if (loading) {
     return (
       <div style={styles.container}>
@@ -222,16 +359,7 @@ export default function MyPrescriptions() {
                 <div style={styles.cardFooter}>
                   <div style={styles.prescriptionId}>Prescription ID: {p._id?.slice(-8) || "N/A"}</div>
                   <button 
-                    onClick={() => {
-                      const printContent = document.getElementById(`prescription-${p._id}`);
-                      if (printContent) {
-                        const originalContents = document.body.innerHTML;
-                        document.body.innerHTML = printContent.innerHTML;
-                        window.print();
-                        document.body.innerHTML = originalContents;
-                        window.location.reload();
-                      }
-                    }}
+                    onClick={() => printPrescription(p)}
                     style={styles.printBtn}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -239,26 +367,6 @@ export default function MyPrescriptions() {
                     </svg>
                     Print
                   </button>
-                </div>
-
-                <div id={`prescription-${p._id}`} style={{ display: 'none' }}>
-                  <div style={styles.printContainer}>
-                    <h2>Medical Prescription</h2>
-                    <p><strong>Date:</strong> {formatDate(p.createdAt)}</p>
-                    <p><strong>Doctor ID:</strong> {p.doctorId || "N/A"}</p>
-                    {p.appointmentId && <p><strong>Appointment ID:</strong> {p.appointmentId}</p>}
-                    <hr />
-                    <h3>Medications</h3>
-                    <p>{p.meds}</p>
-                    {p.notes && (
-                      <>
-                        <h3>Notes & Instructions</h3>
-                        <p>{p.notes}</p>
-                      </>
-                    )}
-                    <hr />
-                    <p><em>Prescription ID: {p._id}</em></p>
-                  </div>
                 </div>
               </div>
             ))}
@@ -625,12 +733,6 @@ const styles = {
   emptySubtext: {
     fontSize: "14px",
     color: "#5e7a93",
-  },
-  printContainer: {
-    padding: "40px",
-    fontFamily: "'Inter', system-ui, sans-serif",
-    maxWidth: "800px",
-    margin: "0 auto",
   },
 };
 

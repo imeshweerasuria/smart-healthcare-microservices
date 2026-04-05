@@ -13,6 +13,31 @@ export default function DoctorAppointments() {
     return status && status.toUpperCase() === "PAID";
   };
 
+  // Helper functions to safely format dates
+  const formatSafeDate = (value) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "-";
+
+    return d.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
+  const formatSafeTime = (value) => {
+    if (!value) return "-";
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return "-";
+
+    return d.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const load = async () => {
     try {
       setLoading(true);
@@ -271,18 +296,10 @@ export default function DoctorAppointments() {
                       <div>
                         <div style={styles.patientId}>Patient ID: {a.patientId}</div>
                         <div style={styles.appointmentDate}>
-                          📅 {new Date(a.datetime).toLocaleDateString('en-US', { 
-                            weekday: 'long', 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric' 
-                          })}
+                          📅 Requested on: {formatSafeDate(a.createdAt)}
                         </div>
                         <div style={styles.appointmentTime}>
-                          ⏰ {new Date(a.datetime).toLocaleTimeString('en-US', { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
+                          ⏰ Requested at: {formatSafeTime(a.createdAt)} • Slot {a.slotNumber ?? "-"}
                         </div>
                       </div>
                     </div>
@@ -304,7 +321,6 @@ export default function DoctorAppointments() {
                     </div>
                     
                     {a.telemedicineLink && !["COMPLETED", "REJECTED"].includes(a.status) && (
-
                       <div style={styles.telemedicineSection}>
                         <span style={styles.infoLabel}>Telemedicine Link:</span>
                         <a 
@@ -319,27 +335,27 @@ export default function DoctorAppointments() {
                     )}
                   </div>
 
-<div style={styles.cardActions}>
-  {/* Issue Prescription + Complete only for ACCEPTED */}
-  {a.status === "ACCEPTED" && (
-    <>
-      <Link to={`/doctor/prescribe/${a.patientId}`} style={styles.prescribeBtn}>
-        Issue Prescription
-      </Link>
-      <button onClick={() => completeAppointment(a._id)} style={styles.completeBtn}>
-        ✓ Mark Completed
-      </button>
-    </>
-  )}
+                  <div style={styles.cardActions}>
+                    {/* Issue Prescription + Complete only for ACCEPTED */}
+                    {a.status === "ACCEPTED" && (
+                      <>
+                        <Link to={`/doctor/prescribe/${a.patientId}`} style={styles.prescribeBtn}>
+                          Issue Prescription
+                        </Link>
+                        <button onClick={() => completeAppointment(a._id)} style={styles.completeBtn}>
+                          ✓ Mark Completed
+                        </button>
+                      </>
+                    )}
 
-  {/* Accept/Reject only for PENDING + PAID */}
-  {a.status === "PENDING" && isPaid(a.paymentStatus) && (
-    <div style={styles.actionButtons}>
-      <button onClick={() => updateStatus(a._id, "ACCEPTED")} style={styles.acceptBtn}>✓ Accept</button>
-      <button onClick={() => updateStatus(a._id, "REJECTED")} style={styles.rejectBtn}>✗ Reject</button>
-    </div>
-  )}
-</div>
+                    {/* Accept/Reject only for PENDING + PAID */}
+                    {a.status === "PENDING" && isPaid(a.paymentStatus) && (
+                      <div style={styles.actionButtons}>
+                        <button onClick={() => updateStatus(a._id, "ACCEPTED")} style={styles.acceptBtn}>✓ Accept</button>
+                        <button onClick={() => updateStatus(a._id, "REJECTED")} style={styles.rejectBtn}>✗ Reject</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

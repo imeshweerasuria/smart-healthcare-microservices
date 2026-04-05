@@ -96,6 +96,7 @@ Appointment ID: ${appt._id}
 Doctor ID: ${appt.doctorId}
 Slot Number: ${appt.slotNumber}
 Payment Status: ${appt.paymentStatus}
+Reason: ${appt.reason}
 Telemedicine Link: ${appt.telemedicineLink || "Not available"}
 
 Smart Healthcare`;
@@ -110,6 +111,7 @@ Appointment ID: ${appt._id}
 Patient ID: ${appt.patientId}
 Slot Number: ${appt.slotNumber}
 Payment Status: ${appt.paymentStatus}
+Reason: ${appt.reason}
 Telemedicine Link: ${appt.telemedicineLink || "Not available"}
 
 Smart Healthcare`;
@@ -144,6 +146,7 @@ Appointment ID: ${appt._id}
 Doctor ID: ${appt.doctorId}
 Slot Number: ${appt.slotNumber}
 Status: ${appt.status}
+Reason: ${appt.reason}
 
 Smart Healthcare`;
 
@@ -157,6 +160,7 @@ Appointment ID: ${appt._id}
 Patient ID: ${appt.patientId}
 Slot Number: ${appt.slotNumber}
 Status: ${appt.status}
+Reason: ${appt.reason}
 
 Smart Healthcare`;
 
@@ -184,9 +188,12 @@ Smart Healthcare`;
 router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
     const { doctorId, slotNumber, reason } = req.body;
+    const trimmedReason = typeof reason === "string" ? reason.trim() : "";
 
-    if (!doctorId || !slotNumber) {
-      return res.status(400).json({ message: "doctorId and slotNumber required" });
+    if (!doctorId || !slotNumber || !trimmedReason) {
+      return res
+        .status(400)
+        .json({ message: "doctorId, slotNumber and reason are required" });
     }
 
     if (slotNumber < 1 || slotNumber > 10) {
@@ -217,11 +224,11 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
       patientPhone: req.user.phone || "",
       doctorId,
       slotNumber,
-      reason: reason || "",
+      reason: trimmedReason,
       status: "PENDING",
     });
 
-    // ✅ FIX 1: Notify BOTH patient AND doctor on appointment creation
+    // Notify BOTH patient AND doctor on appointment creation
     const contacts = await loadAppointmentContacts(appt);
 
     await Promise.all([
@@ -229,7 +236,7 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
       sendEmailNotification(
         contacts.patientEmail,
         "Appointment Request Created",
-        `Hello ${contacts.patientName},\n\nYour appointment request has been created and is currently PENDING.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+        `Hello ${contacts.patientName},\n\nYour appointment request has been created and is currently PENDING.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\nReason: ${trimmedReason}\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.patientPhone,
@@ -240,7 +247,7 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
       sendEmailNotification(
         contacts.doctorEmail,
         "New Appointment Request",
-        `Hello ${contacts.doctorName},\n\nA new appointment request has been created.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nReason: ${reason || "Not provided"}\n\nSmart Healthcare`
+        `Hello ${contacts.doctorName},\n\nA new appointment request has been created.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nReason: ${trimmedReason}\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.doctorPhone,
@@ -323,7 +330,7 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
 
       appt.telemedicineLink = tele.data.meetingUrl || "";
 
-      // ✅ FIX 2: Notify BOTH patient AND doctor on acceptance
+      // Notify BOTH patient AND doctor on acceptance
       const contacts = await loadAppointmentContacts(appt);
 
       await Promise.all([
@@ -331,7 +338,7 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
         sendEmailNotification(
           contacts.patientEmail,
           "Appointment Accepted - Telemedicine Link",
-          `Hello ${contacts.patientName},\n\nYour appointment has been ACCEPTED.\n\nJoin your telemedicine session: ${appt.telemedicineLink}\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+          `Hello ${contacts.patientName},\n\nYour appointment has been ACCEPTED.\n\nJoin your telemedicine session: ${appt.telemedicineLink}\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\nReason: ${appt.reason}\n\nSmart Healthcare`
         ),
         sendSmsNotification(
           contacts.patientPhone,
@@ -342,7 +349,7 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
         sendEmailNotification(
           contacts.doctorEmail,
           "Appointment Accepted",
-          `Hello ${contacts.doctorName},\n\nYou have ACCEPTED an appointment.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nTelemedicine Link: ${appt.telemedicineLink}\n\nSmart Healthcare`
+          `Hello ${contacts.doctorName},\n\nYou have ACCEPTED an appointment.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nReason: ${appt.reason}\nTelemedicine Link: ${appt.telemedicineLink}\n\nSmart Healthcare`
         ),
         sendSmsNotification(
           contacts.doctorPhone,
@@ -405,7 +412,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
     appt.status = "CANCELLED";
     await appt.save();
 
-    // ✅ FIX 3: Notify BOTH patient AND doctor on cancellation
+    // Notify BOTH patient AND doctor on cancellation
     const contacts = await loadAppointmentContacts(appt);
 
     await Promise.all([
@@ -413,7 +420,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
       sendEmailNotification(
         contacts.patientEmail,
         "Appointment Cancelled",
-        `Hello ${contacts.patientName},\n\nYour appointment has been CANCELLED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+        `Hello ${contacts.patientName},\n\nYour appointment has been CANCELLED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\nReason: ${appt.reason}\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.patientPhone,
@@ -424,7 +431,7 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
       sendEmailNotification(
         contacts.doctorEmail,
         "Appointment Cancelled by Patient",
-        `Hello ${contacts.doctorName},\n\nAn appointment has been CANCELLED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+        `Hello ${contacts.doctorName},\n\nAn appointment has been CANCELLED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nReason: ${appt.reason}\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.doctorPhone,
@@ -476,7 +483,7 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
     appt.telemedicineLink = "";
     await appt.save();
 
-    // ✅ FIX 4: Notify BOTH patient AND doctor on reschedule
+    // Notify BOTH patient AND doctor on reschedule
     const contacts = await loadAppointmentContacts(appt);
 
     await Promise.all([
@@ -484,7 +491,7 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
       sendEmailNotification(
         contacts.patientEmail,
         "Appointment Rescheduled",
-        `Hello ${contacts.patientName},\n\nYour appointment has been RESCHEDULED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nStatus reset to PENDING\n\nSmart Healthcare`
+        `Hello ${contacts.patientName},\n\nYour appointment has been RESCHEDULED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nReason: ${appt.reason}\nStatus reset to PENDING\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.patientPhone,
@@ -495,7 +502,7 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
       sendEmailNotification(
         contacts.doctorEmail,
         "Appointment Rescheduled by Patient",
-        `Hello ${contacts.doctorName},\n\nAn appointment has been RESCHEDULED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nStatus reset to PENDING\n\nSmart Healthcare`
+        `Hello ${contacts.doctorName},\n\nAn appointment has been RESCHEDULED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nReason: ${appt.reason}\nStatus reset to PENDING\n\nSmart Healthcare`
       ),
       sendSmsNotification(
         contacts.doctorPhone,
@@ -522,7 +529,6 @@ router.patch("/:id/complete", requireAuth, requireRole("DOCTOR", "ADMIN"), async
     appt.status = "COMPLETED";
     await appt.save();
 
-    // REQUIRED CASE 2:
     // On COMPLETED -> send SMS + Email to BOTH patient and doctor
     await notifyCompletedToBoth(appt);
 
@@ -556,13 +562,21 @@ router.get("/doctor/:doctorId/slots", requireAuth, async (req, res) => {
 
 router.patch("/:id/reason", requireAuth, async (req, res) => {
   try {
-    const { reason } = req.body;
+    const trimmedReason = typeof req.body.reason === "string" ? req.body.reason.trim() : "";
+
+    if (!trimmedReason) {
+      return res.status(400).json({ message: "Reason is required" });
+    }
 
     const appointment = await Appointment.findByIdAndUpdate(
       req.params.id,
-      { reason },
-      { new: true }
+      { reason: trimmedReason },
+      { new: true, runValidators: true }
     );
+
+    if (!appointment) {
+      return res.status(404).json({ message: "Appointment not found" });
+    }
 
     res.json(appointment);
   } catch (err) {
