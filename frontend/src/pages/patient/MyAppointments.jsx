@@ -13,6 +13,7 @@ export default function MyAppointments() {
   const [editReason, setEditReason] = useState("");
   const [loadingMap, setLoadingMap] = useState({});
   const toastTimeout = useRef();
+  const cancelTimeoutsRef = useRef({});
 
   const showToast = (message, type = "success") => {
     if (toastTimeout.current) clearTimeout(toastTimeout.current);
@@ -44,31 +45,37 @@ export default function MyAppointments() {
 
   useEffect(() => {
     load();
+    const interval = setInterval(() => {
+      load();
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
-  // ⬇️ Add this right after the above useEffect
-useEffect(() => {
-  list.forEach(a => {
-    if (a.status === "PENDING" && a.paymentStatus !== "PAID" && !loadingMap[a._id]?.cancel) {
-      const appointmentTime = new Date(a.createdAt).getTime(); // make sure your API returns createdAt
-      const now = Date.now();
-      const twoMinutes = 2 * 60 * 1000;
-      const timeLeft = Math.max(twoMinutes - (now - appointmentTime), 0);
+  useEffect(() => {
+    Object.values(cancelTimeoutsRef.current).forEach(clearTimeout);
+    cancelTimeoutsRef.current = {};
 
-      if (timeLeft > 0) {
-        setTimeout(() => {
+    list.forEach((a) => {
+      if (a.status === "PENDING" && a.paymentStatus !== "PAID" && !loadingMap[a._id]?.cancel) {
+        const appointmentTime = new Date(a.createdAt).getTime();
+        const now = Date.now();
+        const twoMinutes = 2 * 60 * 1000;
+        const timeLeft = Math.max(twoMinutes - (now - appointmentTime), 0);
+
+        const timeoutId = setTimeout(() => {
           cancelAppointment(a._id).then(() => {
             showToast("Appointment cancelled automatically due to inactivity", "error");
           });
         }, timeLeft);
-      } else {
-        cancelAppointment(a._id).then(() => {
-          showToast("Appointment cancelled automatically due to inactivity", "error");
-        });
+
+        cancelTimeoutsRef.current[a._id] = timeoutId;
       }
-    }
-  });
-}, [list]);
+    });
+
+    return () => {
+      Object.values(cancelTimeoutsRef.current).forEach(clearTimeout);
+    };
+  }, [list]);
 
   // Helper to toggle per-action loading
   const setActionLoading = (id, action, value) => {
@@ -151,23 +158,23 @@ useEffect(() => {
     }
   };
 
-   const doctorFees = {
-      "Cardiology": 9000,
-      "Dermatology": 10000,
-      "Neurology": 7000,
-      "Pediatrics": 8000,
-      "Psychiatry": 5000,
-      "Orthopedics": 7000,
-      "Ophthalmology": 9000,
-      "Gynecology": 7000,
-      "Urology": 8000,
-      "General Medicine": 8000,
-      "Family Medicine": 5000,
-      "Emergency Medicine": 7000,
-      "Radiology": 7000,
-      "Anesthesiology": 8000,
-      "Surgery": 9000,
-    };
+  const doctorFees = {
+    "Cardiology": 9000,
+    "Dermatology": 10000,
+    "Neurology": 7000,
+    "Pediatrics": 8000,
+    "Psychiatry": 5000,
+    "Orthopedics": 7000,
+    "Ophthalmology": 9000,
+    "Gynecology": 7000,
+    "Urology": 8000,
+    "General Medicine": 8000,
+    "Family Medicine": 5000,
+    "Emergency Medicine": 7000,
+    "Radiology": 7000,
+    "Anesthesiology": 8000,
+    "Surgery": 9000,
+  };
 
   const navItems = [
     { path: "/patient/profile", label: "My Profile", icon: "👤" },
@@ -195,49 +202,46 @@ useEffect(() => {
         return { bg: "#f5f5f5", color: "#757575", label: status };
     }
   };
-  // Refund handler
-const refundAppointment = async (a) => {
-  if (a.paymentStatus !== "PAID") return alert("Only PAID payments can be refunded!");
-  if (a.status !== "REJECTED") return alert("Only REJECTED appointments can be refunded!");
 
-  try {
-    setActionLoading(a._id, "refund", true);
+  const refundAppointment = async (a) => {
+    if (a.paymentStatus !== "PAID") return alert("Only PAID payments can be refunded!");
+    if (a.status !== "REJECTED") return alert("Only REJECTED appointments can be refunded!");
 
-    await axios.post(
-      `${API.payment}/payments/refund`,
-      { appointmentId: a._id },
-      { headers: authHeaders() }
-    );
+    try {
+      setActionLoading(a._id, "refund", true);
 
-     // Update UI: change paymentStatus to REFUNDED and hide refund button
-    setList(prev => prev.map(app => 
-      app._id === a._id ? { ...app, paymentStatus: "REFUNDED" } : app
-    ));
+      await axios.post(
+        `${API.payment}/payments/refund`,
+        { appointmentId: a._id },
+        { headers: authHeaders() }
+      );
 
-    showToast("Refund successful!");
-  } catch (err) {
-    console.error(err.response?.data || err.message);
-    showToast(`Refund failed: ${err.response?.data?.message || err.message}`, "error");
-  } finally {
-    setActionLoading(a._id, "refund", false);
-  }
-};
+      setList(prev => prev.map(app => 
+        app._id === a._id ? { ...app, paymentStatus: "REFUNDED" } : app
+      ));
 
- const getPaymentStatusStyle = (status) => {
-  const s = status?.toUpperCase();
-  switch (s) {
-    case "PAID":
-      return { bg: "#e8f5e9", color: "#2e7d32", label: "Paid" };
-    case "UNPAID":
-      return { bg: "#ffebee", color: "#c62828", label: "Unpaid" };
-    case "REFUNDED":
-      return { bg: "#e0f7fa", color: "#006064", label: "Refunded" }; 
-    default:
-      return { bg: "#f5f5f5", color: "#757575", label: s || "Unpaid" };
-  }
-};
+      showToast("Refund successful!");
+    } catch (err) {
+      console.error(err.response?.data || err.message);
+      showToast(`Refund failed: ${err.response?.data?.message || err.message}`, "error");
+    } finally {
+      setActionLoading(a._id, "refund", false);
+    }
+  };
 
-  
+  const getPaymentStatusStyle = (status) => {
+    const s = status?.toUpperCase();
+    switch (s) {
+      case "PAID":
+        return { bg: "#e8f5e9", color: "#2e7d32", label: "Paid" };
+      case "UNPAID":
+        return { bg: "#ffebee", color: "#c62828", label: "Unpaid" };
+      case "REFUNDED":
+        return { bg: "#e0f7fa", color: "#006064", label: "Refunded" }; 
+      default:
+        return { bg: "#f5f5f5", color: "#757575", label: s || "Unpaid" };
+    }
+  };
 
   const stats = {
     total: list.length,
@@ -402,8 +406,6 @@ const refundAppointment = async (a) => {
         ) : (
           <div style={styles.appointmentsGrid}>
             {list.map((a) => {
-                console.log(a.paymentStatus); // <-- add this line here
-
               const statusStyle = getStatusBadgeStyle(a.status);
               const paymentStyle = getPaymentStatusStyle(a.paymentStatus);
 
@@ -497,11 +499,30 @@ const refundAppointment = async (a) => {
                         </div>
                       </div>
                     </div>
+
+                    {/* Live Queue Info */}
+                    {a.queue?.currentRunningSlot !== null && ["ACCEPTED", "CONFIRMED"].includes(a.status) && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoIcon}>📍</span>
+                        <div>
+                          <div style={styles.infoLabel}>Live Queue</div>
+                          <div style={styles.infoValue}>
+                            Current running slot: {a.queue.currentRunningSlot}
+                          </div>
+                          <div style={{ ...styles.infoValue, marginTop: "4px", fontWeight: "600", color: a.queue.isCurrentTurn ? "#2e7d32" : a.queue.isNextTurn ? "#ed6c02" : "#1a2c3e" }}>
+                            {a.queue.isCurrentTurn
+                              ? "It is your turn now. Join the telemedicine session."
+                              : a.queue.isNextTurn
+                              ? "You are next in the queue."
+                              : `Patients ahead of you: ${a.queue.patientsAhead}`}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div style={styles.cardActions}>
                     {a.telemedicineLink && !["CANCELLED", "COMPLETED"].includes(a.status) && (
-
                       <a
                         href={a.telemedicineLink}
                         target="_blank"
@@ -516,48 +537,71 @@ const refundAppointment = async (a) => {
                       </a>
                     )}
 
-{a.status !== "CANCELLED" && !["PAID", "REFUNDED"].includes(a.paymentStatus?.toUpperCase()) && (
-  <button
-    onClick={() => startStripeCheckout(a._id, a.doctorProfession)}
-    style={styles.payBtn}
-    disabled={loadingMap[a._id]?.pay}
-  >
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {a.queue?.isCurrentTurn && a.telemedicineLink && !["CANCELLED", "COMPLETED"].includes(a.status) && (
+                      <div style={{
+                        padding: "8px 14px",
+                        borderRadius: "20px",
+                        backgroundColor: "#e8f5e9",
+                        color: "#2e7d32",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}>
+                        Your turn is live now
+                      </div>
+                    )}
+
+                    {a.queue?.isNextTurn && a.telemedicineLink && !["CANCELLED", "COMPLETED"].includes(a.status) && (
+                      <div style={{
+                        padding: "8px 14px",
+                        borderRadius: "20px",
+                        backgroundColor: "#fff3e0",
+                        color: "#ed6c02",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                      }}>
+                        You are next
+                      </div>
+                    )}
+
+                    {a.status !== "CANCELLED" && !["PAID", "REFUNDED"].includes(a.paymentStatus?.toUpperCase()) && (
+                      <button
+                        onClick={() => startStripeCheckout(a._id, a.doctorProfession)}
+                        style={styles.payBtn}
+                        disabled={loadingMap[a._id]?.pay}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M3 10H21M7 15H11M7 18H14M5 4H19C20.1046 4 21 4.89543 21 6V18C21 19.1046 20.1046 20 19 20H5C3.89543 20 3 19.1046 3 18V6C3 4.89543 3.89543 4 5 4Z" stroke="currentColor" strokeWidth="2" />
                         </svg>
+                        {loadingMap[a._id]?.pay ? "Processing..." : "Pay with Stripe"}
+                      </button>
+                    )}
 
-    {loadingMap[a._id]?.pay ? "Processing..." : "Pay with Stripe"}
-  </button>
-)}
-
-{a.status !== "CANCELLED" && a.status !== "COMPLETED" && a.status !== "REJECTED" && a.paymentStatus !== "PAID" && (  <button
-    onClick={() => cancelAppointment(a._id)}
-    style={styles.cancelBtn}
-    disabled={loadingMap[a._id]?.cancel}
-  >
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    {a.status !== "CANCELLED" && a.status !== "COMPLETED" && a.status !== "REJECTED" && a.paymentStatus !== "PAID" && (
+                      <button
+                        onClick={() => cancelAppointment(a._id)}
+                        style={styles.cancelBtn}
+                        disabled={loadingMap[a._id]?.cancel}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                           <path d="M18 6L6 18M6 6L18 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         </svg>
+                        {loadingMap[a._id]?.cancel ? "Cancelling..." : "Cancel Appointment"}
+                      </button>
+                    )}
 
-    {loadingMap[a._id]?.cancel ? "Cancelling..." : "Cancel Appointment"}
-  </button>
-)}
-
-{a.status === "REJECTED" && a.paymentStatus?.toUpperCase() === "PAID" && (  
-  <button
-    onClick={() => refundAppointment(a)}
-    style={styles.refundBtn}
-    disabled={loadingMap[a._id]?.refund}
-  >
-    
-    
-     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <path d="M21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C13.76 3 15.4 3.5 16.77 4.37M21 3L16 8M21 3H16M21 3V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-    </svg>
-    {loadingMap[a._id]?.refund ? "Processing..." : "Refund"}
-  </button>
-)}
+                    {a.status === "REJECTED" && a.paymentStatus?.toUpperCase() === "PAID" && (  
+                      <button
+                        onClick={() => refundAppointment(a)}
+                        style={styles.refundBtn}
+                        disabled={loadingMap[a._id]?.refund}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C13.76 3 15.4 3.5 16.77 4.37M21 3L16 8M21 3H16M21 3V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M12 8V12L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                        </svg>
+                        {loadingMap[a._id]?.refund ? "Processing..." : "Refund"}
+                      </button>
+                    )}
                   </div>
                 </div>
               );
@@ -977,6 +1021,21 @@ const styles = {
     transition: "all 0.2s ease",
     fontFamily: "inherit",
   },
+  refundBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "10px 20px",
+    backgroundColor: "#fff3e0",
+    color: "#ed6c02",
+    border: "none",
+    borderRadius: "40px",
+    fontSize: "13px",
+    fontWeight: "500",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    fontFamily: "inherit",
+  },
   loadingContainer: {
     display: "flex",
     flexDirection: "column",
@@ -1065,19 +1124,4 @@ const styles = {
     cursor: "pointer",
     fontSize: "12px",
   },
- refundBtn: {
-  display: "flex",
-  alignItems: "center",
-  gap: "8px",
-  padding: "10px 20px",
-  backgroundColor: "#fff3e0", // Light orange background to match warning style
-  color: "#ed6c02", // Orange text color
-  border: "none",
-  borderRadius: "40px",
-  fontSize: "13px",
-  fontWeight: "500",
-  cursor: "pointer",
-  transition: "all 0.2s ease",
-  fontFamily: "inherit",
-},
 };

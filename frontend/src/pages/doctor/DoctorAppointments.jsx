@@ -44,7 +44,14 @@ export default function DoctorAppointments() {
       const res = await axios.get(`${API.appointment}/appointments/doctor/me`, {
         headers: authHeaders(),
       });
-      setList(res.data);
+      setList(
+        [...res.data].sort((a, b) => {
+          if ((a.slotNumber || 0) !== (b.slotNumber || 0)) {
+            return (a.slotNumber || 0) - (b.slotNumber || 0);
+          }
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        })
+      );
     } catch (e) {
       console.error(e);
       alert("Failed to load appointments");
@@ -120,6 +127,14 @@ export default function DoctorAppointments() {
     completed: list.filter(a => a.status === "COMPLETED").length,
     rejected: list.filter(a => a.status === "REJECTED").length,
   };
+
+  const liveQueueAppointments = list
+    .filter((a) => ["ACCEPTED", "CONFIRMED"].includes(a.status))
+    .sort((a, b) => (a.slotNumber || 0) - (b.slotNumber || 0));
+
+  const currentRunningAppointment = liveQueueAppointments.length
+    ? liveQueueAppointments[0]
+    : null;
 
   return (
     <div style={styles.container}>
@@ -222,6 +237,33 @@ export default function DoctorAppointments() {
           </div>
         </div>
 
+        {/* Live Queue Summary Card */}
+        <div style={styles.tabSection}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: "600", color: "#1a2c3e" }}>Live Queue</div>
+              <div style={{ fontSize: "13px", color: "#5e7a93", marginTop: "4px" }}>
+                {currentRunningAppointment
+                  ? `Current running slot: ${currentRunningAppointment.slotNumber}`
+                  : "No live queue running now"}
+              </div>
+            </div>
+
+            {currentRunningAppointment && (
+              <div style={{
+                padding: "10px 16px",
+                borderRadius: "40px",
+                backgroundColor: "#e8f5e9",
+                color: "#1e6f5c",
+                fontSize: "13px",
+                fontWeight: "600",
+              }}>
+                Running Slot {currentRunningAppointment.slotNumber}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Filter Tabs */}
         <div style={styles.tabSection}>
           <div style={styles.tabs}>
@@ -320,6 +362,21 @@ export default function DoctorAppointments() {
                       </span>
                     </div>
                     
+                    {/* Queue Status */}
+                    {a.queue?.currentRunningSlot !== null && ["ACCEPTED", "CONFIRMED"].includes(a.status) && (
+                      <div style={styles.infoRow}>
+                        <span style={styles.infoLabel}>Queue Status:</span>
+                        <span style={styles.infoValue}>
+                          Slot {a.queue.currentRunningSlot} running now
+                          {a.queue.isCurrentTurn
+                            ? " • This patient is now running"
+                            : a.queue.isNextTurn
+                            ? " • Next patient"
+                            : ` • Patients ahead: ${a.queue.patientsAhead}`}
+                        </span>
+                      </div>
+                    )}
+                    
                     {a.telemedicineLink && !["COMPLETED", "REJECTED"].includes(a.status) && (
                       <div style={styles.telemedicineSection}>
                         <span style={styles.infoLabel}>Telemedicine Link:</span>
@@ -336,10 +393,10 @@ export default function DoctorAppointments() {
                   </div>
 
                   <div style={styles.cardActions}>
-                    {/* Issue Prescription + Complete only for ACCEPTED */}
-                    {a.status === "ACCEPTED" && (
+                    {/* Issue Prescription + Complete for ACCEPTED and CONFIRMED */}
+                    {["ACCEPTED", "CONFIRMED"].includes(a.status) && (
                       <>
-                        <Link to={`/doctor/prescribe/${a.patientId}`} style={styles.prescribeBtn}>
+                        <Link to={`/doctor/prescribe/${a.patientId}?appointmentId=${a._id}`} style={styles.prescribeBtn}>
                           Issue Prescription
                         </Link>
                         <button onClick={() => completeAppointment(a._id)} style={styles.completeBtn}>

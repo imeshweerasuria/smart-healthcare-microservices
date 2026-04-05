@@ -1,12 +1,41 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import axios from "axios";
+import { API, authHeaders } from "../../api/client";
 import { clearSession, getName } from "../../api/auth";
 
 export default function PatientDashboard() {
   const navigate = useNavigate();
+  const [queueAppointments, setQueueAppointments] = useState([]);
+  const [queueLoading, setQueueLoading] = useState(true);
 
   const logout = () => {
     clearSession();
     navigate("/login");
+  };
+
+  const loadQueueAppointments = async () => {
+    try {
+      setQueueLoading(true);
+      const res = await axios.get(`${API.appointment}/appointments/me`, {
+        headers: authHeaders(),
+      });
+
+      const live = res.data
+        .filter((a) => ["ACCEPTED", "CONFIRMED"].includes(a.status))
+        .sort((a, b) => {
+          const aAhead = a.queue?.patientsAhead ?? 999;
+          const bAhead = b.queue?.patientsAhead ?? 999;
+          return aAhead - bAhead;
+        });
+
+      setQueueAppointments(live);
+    } catch (err) {
+      console.error("Failed to load queue appointments:", err);
+      setQueueAppointments([]);
+    } finally {
+      setQueueLoading(false);
+    }
   };
 
   const navItems = [
@@ -19,6 +48,16 @@ export default function PatientDashboard() {
     { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊", active: false },
     { path: "/patient/payments", label: "My Payments", icon: "💰", active: false },
   ];
+
+  useEffect(() => {
+    loadQueueAppointments();
+
+    const interval = setInterval(() => {
+      loadQueueAppointments();
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={styles.container}>
@@ -73,6 +112,75 @@ export default function PatientDashboard() {
           <div>
             <h2 style={styles.welcomeTitle}>Welcome back, {getName() || "Patient"}!</h2>
             <p style={styles.welcomeText}>Access your healthcare services from your personal dashboard</p>
+          </div>
+        </div>
+
+        {/* Live Queue Status Card */}
+        <div style={styles.welcomeCard}>
+          <div style={styles.welcomeIcon}>📍</div>
+          <div style={{ width: "100%" }}>
+            <h2 style={styles.welcomeTitle}>Live Queue Status</h2>
+
+            {queueLoading ? (
+              <p style={styles.welcomeText}>Loading queue status...</p>
+            ) : queueAppointments.length === 0 ? (
+              <p style={styles.welcomeText}>No active live queue for your appointments right now.</p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginTop: "12px" }}>
+                {queueAppointments.map((a) => (
+                  <div
+                    key={a._id}
+                    style={{
+                      backgroundColor: "#f8fafc",
+                      borderRadius: "14px",
+                      padding: "14px 16px",
+                      border: "1px solid #eef2f6",
+                    }}
+                  >
+                    <div style={{ fontSize: "14px", fontWeight: "600", color: "#1a2c3e", marginBottom: "4px" }}>
+                      Doctor ID: {a.doctorId?.slice(-6) || a.doctorId}
+                    </div>
+
+                    <div style={{ fontSize: "13px", color: "#5e7a93", marginBottom: "6px" }}>
+                      Your slot: {a.slotNumber}
+                    </div>
+
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e6f5c" }}>
+                      Current running slot: {a.queue?.currentRunningSlot ?? "-"}
+                    </div>
+
+                    <div style={{ fontSize: "13px", color: "#1a2c3e", marginTop: "6px" }}>
+                      {a.queue?.isCurrentTurn
+                        ? "It is your turn now."
+                        : a.queue?.isNextTurn
+                        ? "You are next in the queue."
+                        : a.queue?.queueMessage || "Queue info unavailable"}
+                    </div>
+
+                    {a.telemedicineLink && !["CANCELLED", "COMPLETED"].includes(a.status) && (
+                      <a
+                        href={a.telemedicineLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          display: "inline-flex",
+                          marginTop: "10px",
+                          padding: "8px 14px",
+                          borderRadius: "20px",
+                          backgroundColor: a.queue?.isCurrentTurn ? "#e8f5e9" : "#e3f2fd",
+                          color: a.queue?.isCurrentTurn ? "#2e7d32" : "#0288d1",
+                          textDecoration: "none",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                        }}
+                      >
+                        Join Telemedicine
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
