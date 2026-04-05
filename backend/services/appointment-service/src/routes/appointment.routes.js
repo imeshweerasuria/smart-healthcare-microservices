@@ -1,7 +1,6 @@
 const express = require("express");
 const axios = require("axios");
-const mongoose = require("mongoose"); // ADD THIS
-
+const mongoose = require("mongoose");
 
 const Appointment = require("../models/Appointment");
 const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
@@ -12,6 +11,10 @@ const TELEMEDICINE_URL = process.env.TELEMEDICINE_URL || "http://localhost:4005"
 const NOTIFICATION_URL = process.env.NOTIFICATION_URL || "http://localhost:4006";
 const DOCTOR_URL = process.env.DOCTOR_URL || "http://localhost:4003";
 const AUTH_URL = process.env.AUTH_URL || "http://localhost:4001";
+
+// Queue constants
+const QUEUE_ACTIVE_STATUSES = ["ACCEPTED", "CONFIRMED"];
+const QUEUE_ALL_RELEVANT_STATUSES = ["ACCEPTED", "CONFIRMED", "COMPLETED"];
 
 // ---------------- HELPERS ----------------
 
@@ -183,6 +186,114 @@ Smart Healthcare`;
   ]);
 }
 
+function sortBySlotThenTime(a, b) {
+  if ((a.slotNumber || 0) !== (b.slotNumber || 0)) {
+    return (a.slotNumber || 0) - (b.slotNumber || 0);
+  }
+  return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+}
+
+async function buildDoctorQueueMap(doctorIds) {
+  if (!doctorIds.length) return new Map();
+
+  const queueDocs = await Appointment.find({
+    doctorId: { $in: doctorIds },
+    status: { $in: QUEUE_ALL_RELEVANT_STATUSES },
+  }).sort({ slotNumber: 1, createdAt: 1 });
+
+  const map = new Map();
+
+  doctorIds.forEach((doctorId) => {
+    map.set(doctorId, []);
+  });
+
+  queueDocs.forEach((doc) => {
+    if (!map.has(doc.doctorId)) {
+      map.set(doc.doctorId, []);
+    }
+    map.get(doc.doctorId).push(doc);
+  });
+
+  return map;
+}
+
+function getQueueMetaForAppointment(appt, doctorQueue = []) {
+  const activeQueue = doctorQueue
+    .filter((item) => QUEUE_ACTIVE_STATUSES.includes(item.status))
+    .sort(sortBySlotThenTime);
+
+  const currentRunningSlot = activeQueue.length ? activeQueue[0].slotNumber : null;
+
+  if (!QUEUE_ALL_RELEVANT_STATUSES.includes(appt.status)) {
+    return {
+      currentRunningSlot: null,
+      patientsAhead: null,
+      isCurrentTurn: false,
+      isNextTurn: false,
+      queueMessage: "Queue not active for this appointment",
+    };
+  }
+
+  if (appt.status === "COMPLETED") {
+    return {
+      currentRunningSlot,
+      patientsAhead: 0,
+      isCurrentTurn: false,
+      isNextTurn: false,
+      queueMessage: "Appointment completed",
+    };
+  }
+
+  if (currentRunningSlot === null) {
+    return {
+      currentRunningSlot: null,
+      patientsAhead: 0,
+      isCurrentTurn: false,
+      isNextTurn: false,
+      queueMessage: "Queue not started yet",
+    };
+  }
+
+  const patientsAhead = activeQueue.filter(
+    (item) => item.slotNumber < appt.slotNumber
+  ).length;
+
+  const isCurrentTurn = currentRunningSlot === appt.slotNumber;
+  const isNextTurn = !isCurrentTurn && patientsAhead === 1;
+
+  let queueMessage = "";
+  if (isCurrentTurn) {
+    queueMessage = `Slot ${appt.slotNumber} is running now`;
+  } else if (isNextTurn) {
+    queueMessage = `Current running slot is ${currentRunningSlot}. You are next`;
+  } else {
+    queueMessage = `Current running slot is ${currentRunningSlot}. Patients ahead: ${patientsAhead}`;
+  }
+
+  return {
+    currentRunningSlot,
+    patientsAhead,
+    isCurrentTurn,
+    isNextTurn,
+    queueMessage,
+  };
+}
+
+async function enrichAppointmentsWithQueue(list) {
+  const doctorIds = [...new Set(list.map((item) => item.doctorId).filter(Boolean))];
+  const queueMap = await buildDoctorQueueMap(doctorIds);
+
+  return list.map((appt) => {
+    const plain = appt.toObject ? appt.toObject() : appt;
+    const doctorQueue = queueMap.get(appt.doctorId) || [];
+
+    return {
+      ...plain,
+      queue: getQueueMetaForAppointment(appt, doctorQueue),
+    };
+  });
+}
+
 // ---------------- ROUTES ----------------
 
 router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
@@ -263,13 +374,25 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
 });
 
 router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
-  const list = await Appointment.find({ patientId: req.user.userId }).sort({ createdAt: -1 });
-  res.json(list);
+  try {
+    const list = await Appointment.find({ patientId: req.user.userId }).sort({ createdAt: -1 });
+    const enriched = await enrichAppointmentsWithQueue(list);
+    res.json(enriched);
+  } catch (e) {
+    console.error("Get patient appointments error:", e.message);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 router.get("/doctor/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
-  const list = await Appointment.find({ doctorId: req.user.userId }).sort({ createdAt: -1 });
-  res.json(list);
+  try {
+    const list = await Appointment.find({ doctorId: req.user.userId }).sort({ slotNumber: 1, createdAt: 1 });
+    const enriched = await enrichAppointmentsWithQueue(list);
+    res.json(enriched);
+  } catch (e) {
+    console.error("Get doctor appointments error:", e.message);
+    res.status(500).json({ message: "Server error" });
+  }
 });
 
 // Admin route to get all appointments
@@ -618,4 +741,5 @@ router.put("/:id/mark-refunded", async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
 module.exports = router;

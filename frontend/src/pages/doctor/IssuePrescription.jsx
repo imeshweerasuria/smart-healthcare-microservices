@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { API, authHeaders } from "../../api/client";
 
 export default function IssuePrescription() {
   const { patientId } = useParams();
+  const [searchParams] = useSearchParams();
+  const appointmentId = searchParams.get("appointmentId") || "";
   const navigate = useNavigate();
   const [meds, setMeds] = useState("");
   const [notes, setNotes] = useState("");
@@ -20,7 +22,7 @@ export default function IssuePrescription() {
       setSubmitting(true);
       await axios.post(
         `${API.doctor}/prescriptions`,
-        { patientId, meds, notes },
+        { patientId, appointmentId, meds, notes },
         { headers: authHeaders() }
       );
       alert("Prescription issued successfully");
@@ -117,6 +119,12 @@ export default function IssuePrescription() {
             <span style={styles.patientIdLabel}>Patient ID:</span>
             <code style={styles.patientIdCode}>{patientId}</code>
           </div>
+          {appointmentId && (
+            <div style={styles.patientIdContainer}>
+              <span style={styles.patientIdLabel}>Appointment ID:</span>
+              <code style={styles.patientIdCode}>{appointmentId}</code>
+            </div>
+          )}
           <p style={styles.infoHint}>
             This prescription will be linked to this patient's medical record
           </p>
