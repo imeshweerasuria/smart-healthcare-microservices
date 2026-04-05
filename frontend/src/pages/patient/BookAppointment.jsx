@@ -101,11 +101,11 @@ export default function BookAppointment() {
     { path: "/patient/payments", label: "My Payments", icon: "💰" },
   ];
 
-  const getMinDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    return now.toISOString().slice(0, 16);
-  };
+  //const getMinDateTime = () => {
+   // const now = new Date();
+   // now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+   // return now.toISOString().slice(0, 16);
+  //};
 
   if (loadingDoctor) {
     return (
