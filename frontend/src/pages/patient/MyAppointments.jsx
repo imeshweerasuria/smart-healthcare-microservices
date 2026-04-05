@@ -223,18 +223,21 @@ const refundAppointment = async (a) => {
   }
 };
 
-  const getPaymentStatusStyle = (status) => {
-    switch (status) {
-      case "PAID":
-        return { bg: "#e8f5e9", color: "#2e7d32", label: "Paid" };
-      case "UNPAID":
-        return { bg: "#ffebee", color: "#c62828", label: "Unpaid" };
-        case "REFUNDED":
-        return { bg: "#e0f7fa", color: "#006064", label: "Refunded" }; 
-      default:
-        return { bg: "#f5f5f5", color: "#757575", label: status || "Unpaid" };
-    }
-  };
+ const getPaymentStatusStyle = (status) => {
+  const s = status?.toUpperCase();
+  switch (s) {
+    case "PAID":
+      return { bg: "#e8f5e9", color: "#2e7d32", label: "Paid" };
+    case "UNPAID":
+      return { bg: "#ffebee", color: "#c62828", label: "Unpaid" };
+    case "REFUNDED":
+      return { bg: "#e0f7fa", color: "#006064", label: "Refunded" }; 
+    default:
+      return { bg: "#f5f5f5", color: "#757575", label: s || "Unpaid" };
+  }
+};
+
+  
 
   const stats = {
     total: list.length,
@@ -513,7 +516,7 @@ const refundAppointment = async (a) => {
                       </a>
                     )}
 
-{a.status !== "CANCELLED" && a.paymentStatus !== "PAID" && a.paymentStatus !== "REFUNDED" && (
+{a.status !== "CANCELLED" && !["PAID", "REFUNDED"].includes(a.paymentStatus?.toUpperCase()) && (
   <button
     onClick={() => startStripeCheckout(a._id, a.doctorProfession)}
     style={styles.payBtn}
@@ -540,7 +543,7 @@ const refundAppointment = async (a) => {
   </button>
 )}
 
-{a.status === "REJECTED" && a.paymentStatus === "PAID" && (
+{a.status === "REJECTED" && a.paymentStatus?.toUpperCase() === "PAID" && (  
   <button
     onClick={() => refundAppointment(a)}
     style={styles.refundBtn}
