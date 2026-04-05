@@ -39,11 +39,11 @@ export default function MyPayments() {
   const getFilteredPayments = () => {
     switch (activeTab) {
       case "paid":
-        return list.filter(p => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "succeeded");
+        return list.filter(p => p.status?.toLowerCase() === "paid");
       case "pending":
         return list.filter(p => p.status?.toLowerCase() === "pending");
       case "failed":
-        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "cancelled");
+        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "failed");
       case "refunded":
         return list.filter(p => p.status?.toLowerCase() === "refunded");
       default:
@@ -57,11 +57,11 @@ export default function MyPayments() {
   const getCount = (status) => {
     switch (status) {
       case "paid":
-        return list.filter(p => p.status?.toLowerCase() === "completed" || p.status?.toLowerCase() === "succeeded").length;
+        return list.filter(p => p.status?.toLowerCase() === "paid" || p.status?.toLowerCase() === "paid").length;
       case "pending":
         return list.filter(p => p.status?.toLowerCase() === "pending").length;
       case "failed":
-        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "cancelled").length;
+        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "failed").length;
       case "refunded":
         return list.filter(p => p.status?.toLowerCase() === "refunded").length;
       default:

@@ -540,12 +540,13 @@ const refundAppointment = async (a) => {
   </button>
 )}
 
-{a.status === "REJECTED" && a.paymentStatus === "PAID" && a.paymentStatus !== "REFUNDED" &&(
+{a.status === "REJECTED" && a.paymentStatus === "PAID" && (
   <button
     onClick={() => refundAppointment(a)}
     style={styles.refundBtn}
     disabled={loadingMap[a._id]?.refund}
   >
+    
     
      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path d="M21 12C21 16.97 16.97 21 12 21C7.03 21 3 16.97 3 12C3 7.03 7.03 3 12 3C13.76 3 15.4 3.5 16.77 4.37M21 3L16 8M21 3H16M21 3V8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
