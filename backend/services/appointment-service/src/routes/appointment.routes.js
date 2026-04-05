@@ -219,20 +219,32 @@ router.post("/", requireAuth, requireRole("PATIENT"), async (req, res) => {
       status: "PENDING",
     });
 
-    if (appt.patientEmail) {
-      await sendEmailNotification(
-        appt.patientEmail,
-        "Appointment Request Created",
-        `Your appointment request has been created and is currently PENDING.\nAppointment ID: ${appt._id}`
-      );
-    }
+    // ✅ FIX 1: Notify BOTH patient AND doctor on appointment creation
+    const contacts = await loadAppointmentContacts(appt);
 
-    if (appt.patientPhone) {
-      await sendSmsNotification(
-        appt.patientPhone,
+    await Promise.all([
+      // Patient notifications
+      sendEmailNotification(
+        contacts.patientEmail,
+        "Appointment Request Created",
+        `Hello ${contacts.patientName},\n\nYour appointment request has been created and is currently PENDING.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.patientPhone,
         `Smart Healthcare: Appointment request created. ID: ${appt._id}`
-      );
-    }
+      ),
+      
+      // Doctor notifications (NEW)
+      sendEmailNotification(
+        contacts.doctorEmail,
+        "New Appointment Request",
+        `Hello ${contacts.doctorName},\n\nA new appointment request has been created.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nReason: ${reason || "Not provided"}\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.doctorPhone,
+        `Smart Healthcare: New appointment request from ${contacts.patientName}. ID: ${appt._id}`
+      )
+    ]);
 
     res.json(appt);
   } catch (e) {
@@ -309,20 +321,32 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
 
       appt.telemedicineLink = tele.data.meetingUrl || "";
 
-      if (appt.patientEmail) {
-        await sendEmailNotification(
-          appt.patientEmail,
-          "Appointment Accepted - Telemedicine Link",
-          `Your appointment is ACCEPTED.\nJoin: ${appt.telemedicineLink}\nAppointment ID: ${appt._id}`
-        );
-      }
+      // ✅ FIX 2: Notify BOTH patient AND doctor on acceptance
+      const contacts = await loadAppointmentContacts(appt);
 
-      if (appt.patientPhone) {
-        await sendSmsNotification(
-          appt.patientPhone,
-          `Smart Healthcare: Appointment accepted. Check email for details.`
-        );
-      }
+      await Promise.all([
+        // Patient notifications
+        sendEmailNotification(
+          contacts.patientEmail,
+          "Appointment Accepted - Telemedicine Link",
+          `Hello ${contacts.patientName},\n\nYour appointment has been ACCEPTED.\n\nJoin your telemedicine session: ${appt.telemedicineLink}\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+        ),
+        sendSmsNotification(
+          contacts.patientPhone,
+          `Smart Healthcare: Appointment accepted by Dr. ${contacts.doctorName}. Check email for telemedicine link.`
+        ),
+        
+        // Doctor notifications (NEW)
+        sendEmailNotification(
+          contacts.doctorEmail,
+          "Appointment Accepted",
+          `Hello ${contacts.doctorName},\n\nYou have ACCEPTED an appointment.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\nTelemedicine Link: ${appt.telemedicineLink}\n\nSmart Healthcare`
+        ),
+        sendSmsNotification(
+          contacts.doctorPhone,
+          `Smart Healthcare: You accepted appointment ${appt._id} for ${contacts.patientName}.`
+        )
+      ]);
     }
 
     await appt.save();
@@ -379,20 +403,32 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
     appt.status = "CANCELLED";
     await appt.save();
 
-    if (appt.patientEmail) {
-      await sendEmailNotification(
-        appt.patientEmail,
-        "Appointment Cancelled",
-        `Your appointment ${appt._id} has been cancelled.`
-      );
-    }
+    // ✅ FIX 3: Notify BOTH patient AND doctor on cancellation
+    const contacts = await loadAppointmentContacts(appt);
 
-    if (appt.patientPhone) {
-      await sendSmsNotification(
-        appt.patientPhone,
+    await Promise.all([
+      // Patient notifications
+      sendEmailNotification(
+        contacts.patientEmail,
+        "Appointment Cancelled",
+        `Hello ${contacts.patientName},\n\nYour appointment has been CANCELLED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.patientPhone,
         `Smart Healthcare: Appointment cancelled. ID: ${appt._id}`
-      );
-    }
+      ),
+      
+      // Doctor notifications (NEW)
+      sendEmailNotification(
+        contacts.doctorEmail,
+        "Appointment Cancelled by Patient",
+        `Hello ${contacts.doctorName},\n\nAn appointment has been CANCELLED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nSlot Number: ${appt.slotNumber}\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.doctorPhone,
+        `Smart Healthcare: Patient ${contacts.patientName} cancelled appointment ${appt._id}.`
+      )
+    ]);
 
     res.json({ message: "Appointment cancelled", appointment: appt });
   } catch (e) {
@@ -431,26 +467,39 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
       return res.status(409).json({ message: "This slot is already taken" });
     }
 
+    const oldSlotNumber = appt.slotNumber;
     appt.slotNumber = slotNumber;
     appt.status = "PENDING";
     appt.paymentStatus = "UNPAID";
     appt.telemedicineLink = "";
     await appt.save();
 
-    if (appt.patientEmail) {
-      await sendEmailNotification(
-        appt.patientEmail,
-        "Appointment Rescheduled",
-        `Your appointment ${appt._id} has been rescheduled to slot ${slotNumber}. Status reset to PENDING.`
-      );
-    }
+    // ✅ FIX 4: Notify BOTH patient AND doctor on reschedule
+    const contacts = await loadAppointmentContacts(appt);
 
-    if (appt.patientPhone) {
-      await sendSmsNotification(
-        appt.patientPhone,
-        `Smart Healthcare: Appointment rescheduled. ID: ${appt._id}`
-      );
-    }
+    await Promise.all([
+      // Patient notifications
+      sendEmailNotification(
+        contacts.patientEmail,
+        "Appointment Rescheduled",
+        `Hello ${contacts.patientName},\n\nYour appointment has been RESCHEDULED.\n\nAppointment ID: ${appt._id}\nDoctor: ${contacts.doctorName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nStatus reset to PENDING\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.patientPhone,
+        `Smart Healthcare: Appointment rescheduled from slot ${oldSlotNumber} to ${slotNumber}. ID: ${appt._id}`
+      ),
+      
+      // Doctor notifications (NEW)
+      sendEmailNotification(
+        contacts.doctorEmail,
+        "Appointment Rescheduled by Patient",
+        `Hello ${contacts.doctorName},\n\nAn appointment has been RESCHEDULED by the patient.\n\nAppointment ID: ${appt._id}\nPatient: ${contacts.patientName}\nOld Slot: ${oldSlotNumber}\nNew Slot: ${slotNumber}\nStatus reset to PENDING\n\nSmart Healthcare`
+      ),
+      sendSmsNotification(
+        contacts.doctorPhone,
+        `Smart Healthcare: Patient ${contacts.patientName} rescheduled appointment ${appt._id} from slot ${oldSlotNumber} to ${slotNumber}.`
+      )
+    ]);
 
     res.json({ message: "Appointment rescheduled", appointment: appt });
   } catch (e) {
