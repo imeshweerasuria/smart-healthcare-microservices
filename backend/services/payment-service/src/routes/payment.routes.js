@@ -48,11 +48,29 @@ async function getDoctorProfile(doctorId, authHeader) {
   return res.data; // should include specialty
 }
 
+
 router.get("/me", requireAuth, async (req, res) => {
   try {
-    const list = await Payment.find({ userId: req.user.userId }).sort({ createdAt: -1 });
-    res.json(list);
+    const appointments = await Appointment.find({ patientId: req.user.userId });
+
+    // For each appointment, fetch the latest payment status
+    const updatedAppointments = await Promise.all(
+      appointments.map(async (a) => {
+        const payment = await Payment.findOne({
+          appointmentId: a._id,
+          userId: req.user.userId,
+        }).sort({ createdAt: -1 }); // get latest payment if multiple
+
+        return {
+          ...a.toObject(),
+          paymentStatus: payment ? payment.status : "UNPAID",
+        };
+      })
+    );
+
+    res.json(updatedAppointments);
   } catch (err) {
+    console.error("Error fetching appointments:", err.message);
     res.status(500).json({ message: err.message });
   }
 });
@@ -209,17 +227,35 @@ console.log("sessionId:", sessionId);
     if (payment.userId !== req.user.userId && req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Forbidden" });
     }
+if (payment.status === "REFUNDED") {
+  return res.json({
+    ok: true,
+    payment,
+    message: "Payment already REFUNDED",
+  });
+}
 
-    if (payment.status === "PAID") {
-      return res.json({ ok: true, payment, message: "Payment already confirmed" });
-    }
+if (payment.status === "PAID") {
+  return res.json({
+    ok: true,
+    payment,
+    message: "Payment already PAID",
+  });
+}
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     console.log("stripe session:", session.payment_status);
 
 
-    if (session.payment_status === "paid") {
-      // Payment successful
+if (payment.status === "REFUNDED") {
+  return res.json({
+    ok: true,
+    payment,
+    message: "Already refunded — skipping",
+  });
+}
+
+if (session.payment_status === "paid") {      // Payment successful
       payment.status = "PAID";
       payment.stripeSessionId = session.id;
       payment.stripePaymentIntentId = session.payment_intent || "";
@@ -362,7 +398,7 @@ router.post("/mark-paid", requireAuth, async (req, res) => {
 });
 
 
-// Refund endpoint
+// Refund endpoint (updated)
 router.post("/refund", requireAuth, async (req, res) => {
   try {
     if (!stripe) {
@@ -370,52 +406,65 @@ router.post("/refund", requireAuth, async (req, res) => {
     }
 
     const { appointmentId } = req.body;
+    if (!appointmentId) return res.status(400).json({ message: "Appointment ID required" });
 
-    if (!appointmentId) {
-      return res.status(400).json({ message: "Appointment ID required" });
-    }
+    // Fetch the latest PAID payment for this appointment and user
+    const payment = await Payment.findOne({
+      appointmentId,
+      userId: req.user.userId,
+      status: "PAID"
+    }).sort({ createdAt: -1 }); // ensure latest one
 
-    const payment = await Payment.findOne({ appointmentId });
     if (!payment) {
-      return res.status(404).json({ message: "Payment not found" });
-    }
-
-    if (payment.status === "REFUNDED") {
-      return res.status(400).json({ message: "Payment already refunded" });
-    }
-
-    if (payment.status !== "PAID") {
-      return res.status(400).json({ message: "Only PAID payments can be refunded" });
+      return res.status(400).json({ message: "No PAID payment found for this appointment" });
     }
 
     if (!payment.stripePaymentIntentId) {
-      return res.status(400).json({ message: "No Stripe payment intent found for this payment" });
+      return res.status(400).json({ message: "Payment has no Stripe intent ID" });
     }
 
     // Refund in Stripe
-    const refund = await stripe.refunds.create({ 
-      payment_intent: payment.stripePaymentIntentId 
+    const refund = await stripe.refunds.create({
+      payment_intent: payment.stripePaymentIntentId,
     });
 
+    // Update payment document
     payment.status = "REFUNDED";
     payment.refundedAmount = payment.amount;
+    payment.refundId = refund.id;
     await payment.save();
 
-    // Fetch appointment for email notification
+    // Update appointment to mark it refunded
+    try {
+      await axios.put(
+        `${APPOINTMENT_URL}/appointments/${payment.appointmentId}/mark-refunded`,
+        {},
+        { headers: { Authorization: req.headers.authorization } }
+      );
+    } catch (appointmentErr) {
+  console.error("❌ FULL AXIOS ERROR:");
+  console.error("status:", appointmentErr.response?.status);
+  console.error("data:", appointmentErr.response?.data);
+  console.error("message:", appointmentErr.message);
+}
+    // Send refund email asynchronously
     const appointment = await getAppointment(payment.appointmentId, req.headers.authorization);
-    
-    // Send email async (don't block response)
     if (appointment.patientEmail) {
       axios.post(`${NOTIFICATION_URL}/notify/email`, {
         to: appointment.patientEmail,
         subject: "Payment Refunded",
         text: `Your payment for appointment ${payment.appointmentId} has been refunded successfully.`,
-      })
-      .then(resp => console.log("Refund email sent:", resp.data))
-      .catch(err => console.error("Refund email failed:", err.response?.data || err.message));
+      }).then(resp => console.log("Refund email sent:", resp.data))
+        .catch(err => console.error("Refund email failed:", err.response?.data || err.message));
     }
 
-    return res.json({ ok: true, message: "Refund successful", refund });
+    return res.json({
+      ok: true,
+      message: "Refund successful",
+      refund,
+      payment
+    });
+
   } catch (err) {
     console.error("Refund error:", err.response?.data || err.message);
     return res.status(500).json({ message: err.message });

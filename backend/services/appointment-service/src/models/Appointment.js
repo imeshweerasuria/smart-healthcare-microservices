@@ -17,7 +17,7 @@ const AppointmentSchema = new mongoose.Schema(
 
    paymentStatus: {
      type: String,
-     enum: ["UNPAID", "PAID"],
+     enum: ["UNPAID", "PAID", "REFUNDED", "FAILED"],
      default: "UNPAID",
    },
 

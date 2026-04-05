@@ -1,5 +1,7 @@
 const express = require("express");
 const axios = require("axios");
+const mongoose = require("mongoose"); // ADD THIS
+
 
 const Appointment = require("../models/Appointment");
 const { requireAuth, requireRole } = require("../../../../shared/middleware/auth");
@@ -569,4 +571,37 @@ router.patch("/:id/reason", requireAuth, async (req, res) => {
   }
 });
 
+router.put("/:id/mark-refunded", async (req, res) => {
+  try {
+    console.log("➡️ Mark refunded called for:", req.params.id);
+
+    // ✅ VALIDATE OBJECT ID FIRST
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      console.log("❌ Invalid ObjectId");
+      return res.status(400).json({ message: "Invalid appointment ID" });
+    }
+
+    const appt = await Appointment.findById(req.params.id);
+
+    if (!appt) {
+      console.log("❌ Appointment not found");
+      return res.status(404).json({ message: "Appointment not found" });
+    }
+
+    appt.paymentStatus = "REFUNDED";
+    await appt.save();
+
+    console.log("✅ Appointment marked REFUNDED");
+
+    res.json({
+      ok: true,
+      message: "Appointment marked as REFUNDED",
+      appointment: appt
+    });
+
+  } catch (err) {
+    console.error("🔥 FULL ERROR:", err);
+    res.status(500).json({ message: err.message });
+  }
+});
 module.exports = router;
