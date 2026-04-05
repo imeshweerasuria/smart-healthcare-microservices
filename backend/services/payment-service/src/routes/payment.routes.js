@@ -48,30 +48,14 @@ async function getDoctorProfile(doctorId, authHeader) {
   return res.data; // should include specialty
 }
 
-
-router.get("/me", requireAuth, async (req, res) => {
+// Fixed /me route - returns payments for the authenticated user
+router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
   try {
-    const appointments = await Appointment.find({ patientId: req.user.userId });
-
-    // For each appointment, fetch the latest payment status
-    const updatedAppointments = await Promise.all(
-      appointments.map(async (a) => {
-        const payment = await Payment.findOne({
-          appointmentId: a._id,
-          userId: req.user.userId,
-        }).sort({ createdAt: -1 }); // get latest payment if multiple
-
-        return {
-          ...a.toObject(),
-          paymentStatus: payment ? payment.status : "UNPAID",
-        };
-      })
-    );
-
-    res.json(updatedAppointments);
+    const payments = await Payment.find({ userId: req.user.userId }).sort({ createdAt: -1 });
+    res.json(payments);
   } catch (err) {
-    console.error("Error fetching appointments:", err.message);
-    res.status(500).json({ message: err.message });
+    console.error("Error fetching payments:", err.message);
+    res.status(500).json({ message: "Failed to fetch payments" });
   }
 });
 
@@ -149,10 +133,10 @@ router.post("/checkout-session", requireAuth, async (req, res) => {
     
     // Pick amount from fee map
     const baseAmount = doctorFees[profession] ?? doctorFees["General Medicine"];
-const amountInLKR = baseAmount * 100;
+    const amountInLKR = baseAmount * 100;
 
     console.log("Amount sent to Stripe:", amountInLKR);
-console.log("Actual LKR amount:", amountInLKR / 100);
+    console.log("Actual LKR amount:", amountInLKR / 100);
     console.log("Doctor profession used for calculation:", profession);
 
     const payment = await Payment.create({
@@ -199,7 +183,6 @@ console.log("Actual LKR amount:", amountInLKR / 100);
 });
 
 // Confirm Stripe success after redirect
-// Confirm Stripe success after redirect
 router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
   try {
     if (!stripe) {
@@ -209,8 +192,7 @@ router.post("/confirm-stripe-success", requireAuth, async (req, res) => {
     const { paymentId, sessionId } = req.body;
 
     console.log("paymentId:", paymentId);
-console.log("sessionId:", sessionId);
-
+    console.log("sessionId:", sessionId);
 
     if (!paymentId || !sessionId) {
       return res.status(400).json({ message: "paymentId and sessionId required" });
@@ -227,35 +209,27 @@ console.log("sessionId:", sessionId);
     if (payment.userId !== req.user.userId && req.user.role !== "ADMIN") {
       return res.status(403).json({ message: "Forbidden" });
     }
-if (payment.status === "REFUNDED") {
-  return res.json({
-    ok: true,
-    payment,
-    message: "Payment already REFUNDED",
-  });
-}
 
-if (payment.status === "PAID") {
-  return res.json({
-    ok: true,
-    payment,
-    message: "Payment already PAID",
-  });
-}
+    if (payment.status === "REFUNDED") {
+      return res.json({
+        ok: true,
+        payment,
+        message: "Payment already REFUNDED",
+      });
+    }
+
+    if (payment.status === "PAID") {
+      return res.json({
+        ok: true,
+        payment,
+        message: "Payment already PAID",
+      });
+    }
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     console.log("stripe session:", session.payment_status);
 
-
-if (payment.status === "REFUNDED") {
-  return res.json({
-    ok: true,
-    payment,
-    message: "Already refunded — skipping",
-  });
-}
-
-if (session.payment_status === "paid") {      // Payment successful
+    if (session.payment_status === "paid") {      // Payment successful
       payment.status = "PAID";
       payment.stripeSessionId = session.id;
       payment.stripePaymentIntentId = session.payment_intent || "";
@@ -343,7 +317,7 @@ router.post("/for-appointment", requireAuth, async (req, res) => {
       .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
       .join(" ");
     const baseAmount = doctorFees[profession] ?? doctorFees["General Medicine"];
-const amountInLKR = baseAmount * 100;
+    const amountInLKR = baseAmount * 100;
 
     const payment = await Payment.create({
       appointmentId,
@@ -397,8 +371,7 @@ router.post("/mark-paid", requireAuth, async (req, res) => {
   }
 });
 
-
-// Refund endpoint (updated)
+// Refund endpoint
 router.post("/refund", requireAuth, async (req, res) => {
   try {
     if (!stripe) {
@@ -442,11 +415,12 @@ router.post("/refund", requireAuth, async (req, res) => {
         { headers: { Authorization: req.headers.authorization } }
       );
     } catch (appointmentErr) {
-  console.error("❌ FULL AXIOS ERROR:");
-  console.error("status:", appointmentErr.response?.status);
-  console.error("data:", appointmentErr.response?.data);
-  console.error("message:", appointmentErr.message);
-}
+      console.error("❌ FULL AXIOS ERROR:");
+      console.error("status:", appointmentErr.response?.status);
+      console.error("data:", appointmentErr.response?.data);
+      console.error("message:", appointmentErr.message);
+    }
+    
     // Send refund email asynchronously
     const appointment = await getAppointment(payment.appointmentId, req.headers.authorization);
     if (appointment.patientEmail) {
@@ -472,4 +446,3 @@ router.post("/refund", requireAuth, async (req, res) => {
 });
 
 module.exports = router;
-

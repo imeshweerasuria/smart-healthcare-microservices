@@ -43,7 +43,7 @@ export default function MyPayments() {
       case "pending":
         return list.filter(p => p.status?.toLowerCase() === "pending");
       case "failed":
-        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "failed");
+        return list.filter(p => p.status?.toLowerCase() === "failed");
       case "refunded":
         return list.filter(p => p.status?.toLowerCase() === "refunded");
       default:
@@ -57,11 +57,11 @@ export default function MyPayments() {
   const getCount = (status) => {
     switch (status) {
       case "paid":
-        return list.filter(p => p.status?.toLowerCase() === "paid" || p.status?.toLowerCase() === "paid").length;
+        return list.filter(p => p.status?.toLowerCase() === "paid").length;
       case "pending":
         return list.filter(p => p.status?.toLowerCase() === "pending").length;
       case "failed":
-        return list.filter(p => p.status?.toLowerCase() === "failed" || p.status?.toLowerCase() === "failed").length;
+        return list.filter(p => p.status?.toLowerCase() === "failed").length;
       case "refunded":
         return list.filter(p => p.status?.toLowerCase() === "refunded").length;
       default:
@@ -72,6 +72,7 @@ export default function MyPayments() {
   // Helper to get status badge style
   const getStatusStyle = (status) => {
     switch (status?.toLowerCase()) {
+      case "paid":
       case "completed":
       case "succeeded":
         return { bg: "#e8f5e9", color: "#2e7d32" };
@@ -89,10 +90,10 @@ export default function MyPayments() {
 
   // Format currency
   const formatCurrency = (amount, currency) => {
-    return new Intl.NumberFormat('en-LK', {
-      style: 'currency',
-      currency: currency || 'LKR',
-    }).format(amount/100);
+    return new Intl.NumberFormat("en-LK", {
+      style: "currency",
+      currency: currency || "LKR",
+    }).format((amount || 0) / 100);
   };
 
   // Calculate totals
