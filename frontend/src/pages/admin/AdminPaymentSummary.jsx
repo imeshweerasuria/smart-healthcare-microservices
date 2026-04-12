@@ -37,12 +37,15 @@ export default function AdminPaymentSummary() {
 
   const formatCurrency = (amount, currency) => {
     if (amount === null || amount === undefined) return null;
+
+    const normalizedAmount = amount / 100; // ✅ convert cents → dollars
+
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: currency || "USD",
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
-    }).format(amount);
+    }).format(normalizedAmount);
   };
 
   const navItems = [
