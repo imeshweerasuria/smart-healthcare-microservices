@@ -30,7 +30,8 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ message: "Missing fields" });
     }
 
-    if (!["PATIENT", "DOCTOR", "ADMIN"].includes(role)) {
+    // Only allow PATIENT and DOCTOR to register (ADMIN cannot register)
+    if (!["PATIENT", "DOCTOR"].includes(role)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 
@@ -120,18 +121,20 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// GOOGLE LOGIN (UPDATED with role selection)
+// GOOGLE LOGIN (UPDATED with role selection and validation)
 router.post("/google-login", async (req, res) => {
   try {
     const { credential, role } = req.body;
 
-    if (!credential) {
-      return res.status(400).json({ message: "Google credential is required" });
+    // Validate credential
+    if (!credential || typeof credential !== "string") {
+      return res.status(400).json({ message: "Invalid Google credential" });
     }
 
     const selectedRole = role || "PATIENT";
 
-    if (!["PATIENT", "DOCTOR", "ADMIN"].includes(selectedRole)) {
+    // Only allow PATIENT and DOCTOR (ADMIN cannot register via Google)
+    if (!["PATIENT", "DOCTOR"].includes(selectedRole)) {
       return res.status(400).json({ message: "Invalid role" });
     }
 

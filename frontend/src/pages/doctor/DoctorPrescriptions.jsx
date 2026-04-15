@@ -1,12 +1,20 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
+import { clearSession } from "../../api/auth";
 
 export default function DoctorPrescriptions() {
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const logout = () => {
+    clearSession();
+    navigate("/login");
+  };
 
   useEffect(() => {
     loadPrescriptions();
@@ -38,17 +46,35 @@ export default function DoctorPrescriptions() {
 
   const filterPrescriptions = () => {
     const { today, lastWeek, lastMonth } = getDateRange();
-    
-    switch(activeFilter) {
+
+    let filteredByDate = [];
+
+    switch (activeFilter) {
       case "today":
-        return list.filter(p => new Date(p.createdAt).toDateString() === today.toDateString());
+        filteredByDate = list.filter(
+          (p) => new Date(p.createdAt).toDateString() === today.toDateString()
+        );
+        break;
       case "week":
-        return list.filter(p => new Date(p.createdAt) >= lastWeek);
+        filteredByDate = list.filter((p) => new Date(p.createdAt) >= lastWeek);
+        break;
       case "month":
-        return list.filter(p => new Date(p.createdAt) >= lastMonth);
+        filteredByDate = list.filter((p) => new Date(p.createdAt) >= lastMonth);
+        break;
       default:
-        return list;
+        filteredByDate = list;
     }
+
+    const q = searchTerm.trim().toLowerCase();
+
+    if (!q) return filteredByDate;
+
+    return filteredByDate.filter((p) => {
+      const patientName = (p.patientName || "").toLowerCase();
+      const patientId = (p.patientId || "").toLowerCase();
+
+      return patientName.includes(q) || patientId.includes(q);
+    });
   };
 
   const filteredList = filterPrescriptions();
@@ -117,6 +143,10 @@ export default function DoctorPrescriptions() {
             <span style={styles.navIcon}>💊</span>
             <span>My Issued Prescriptions</span>
           </div>
+          <button onClick={logout} style={styles.logoutBtn}>
+            <span style={styles.navIcon}>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -169,37 +199,57 @@ export default function DoctorPrescriptions() {
           </div>
         </div>
 
-        {/* Filter Tabs */}
+        {/* Filter Tabs and Search Bar */}
         <div style={styles.tabSection}>
           <div style={styles.tabs}>
             <button 
               onClick={() => setActiveFilter("all")}
-              style={activeFilter === "all" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              style={activeFilter === "all" ? { ...styles.tab, ...styles.tabActive } : styles.tab}
             >
               All
               {stats.total > 0 && <span style={styles.badge}>{stats.total}</span>}
             </button>
             <button 
               onClick={() => setActiveFilter("today")}
-              style={activeFilter === "today" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              style={activeFilter === "today" ? { ...styles.tab, ...styles.tabActive } : styles.tab}
             >
               Today
               {stats.today > 0 && <span style={styles.badge}>{stats.today}</span>}
             </button>
             <button 
               onClick={() => setActiveFilter("week")}
-              style={activeFilter === "week" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              style={activeFilter === "week" ? { ...styles.tab, ...styles.tabActive } : styles.tab}
             >
               Last 7 Days
               {stats.week > 0 && <span style={styles.badge}>{stats.week}</span>}
             </button>
             <button 
               onClick={() => setActiveFilter("month")}
-              style={activeFilter === "month" ? {...styles.tab, ...styles.tabActive} : styles.tab}
+              style={activeFilter === "month" ? { ...styles.tab, ...styles.tabActive } : styles.tab}
             >
               Last 30 Days
               {stats.month > 0 && <span style={styles.badge}>{stats.month}</span>}
             </button>
+          </div>
+
+          <div style={styles.searchWrapper}>
+            <svg style={styles.searchIcon} width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M21 21L16.65 16.65M19 11C19 15.4183 15.4183 19 11 19C6.58172 19 3 15.4183 3 11C3 6.58172 6.58172 3 11 3C15.4183 3 19 6.58172 19 11Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+
+            <input
+              type="text"
+              placeholder="Search by patient name or patient ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={styles.searchInput}
+            />
           </div>
         </div>
 
@@ -231,6 +281,7 @@ export default function DoctorPrescriptions() {
                       {p.patientName?.charAt(0) || "P"}
                     </div>
                     <div>
+                      <div style={styles.patientName}>{p.patientName || "Unknown Patient"}</div>
                       <div style={styles.patientId}>Patient ID: {p.patientId}</div>
                       <div style={styles.prescriptionDate}>
                         📅 {new Date(p.createdAt).toLocaleDateString('en-US', { 
@@ -295,6 +346,7 @@ export default function DoctorPrescriptions() {
                           <head><title>Prescription</title></head>
                           <body>
                             <h2>MediBook Prescription</h2>
+                            <p><strong>Patient Name:</strong> ${p.patientName || "Unknown Patient"}</p>
                             <p><strong>Patient ID:</strong> ${p.patientId}</p>
                             <p><strong>Date:</strong> ${new Date(p.createdAt).toLocaleString()}</p>
                             <p><strong>Medications:</strong> ${p.meds}</p>
@@ -334,7 +386,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",  // ADDED: Forces full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -442,14 +494,30 @@ const styles = {
   navIcon: {
     fontSize: "18px",
   },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#d32f2f",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    fontFamily: "inherit",
+    marginTop: "auto",
+    transition: "all 0.2s ease",
+  },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",  // ADDED: Takes full height
-    overflowY: "auto",  // ADDED: Enables scrolling within content
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
     display: "flex",
@@ -559,6 +627,27 @@ const styles = {
     fontSize: "12px",
     fontWeight: "600",
   },
+  searchWrapper: {
+    position: "relative",
+    marginTop: "16px",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "14px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#94a3b8",
+  },
+  searchInput: {
+    width: "100%",
+    padding: "12px 16px 12px 42px",
+    border: "1.5px solid #e2e8f0",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    outline: "none",
+    boxSizing: "border-box",
+  },
   prescriptionsGrid: {
     display: "flex",
     flexDirection: "column",
@@ -598,10 +687,16 @@ const styles = {
     fontWeight: "600",
     color: "#1e6f5c",
   },
-  patientId: {
-    fontSize: "16px",
-    fontWeight: "600",
+  patientName: {
+    fontSize: "17px",
+    fontWeight: "700",
     color: "#1a2c3e",
+    marginBottom: "4px",
+  },
+  patientId: {
+    fontSize: "13px",
+    fontWeight: "500",
+    color: "#5e7a93",
     marginBottom: "4px",
   },
   prescriptionDate: {
@@ -776,6 +871,12 @@ if (typeof document !== "undefined") {
       to { transform: rotate(360deg); }
     }
     
+    input:focus {
+      border-color: #1e6f5c !important;
+      box-shadow: 0 0 0 3px rgba(30, 111, 92, 0.08) !important;
+      outline: none;
+    }
+    
     button:hover:not(:disabled), .refresh-btn:hover, .print-btn:hover {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
@@ -790,6 +891,11 @@ if (typeof document !== "undefined") {
     .nav-item:hover, .prescription-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
     }
     
     a:hover {

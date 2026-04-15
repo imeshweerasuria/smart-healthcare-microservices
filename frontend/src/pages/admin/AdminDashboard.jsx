@@ -11,18 +11,24 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("pending");
   const [searchTerm, setSearchTerm] = useState("");
+  const [notices, setNotices] = useState([]);
+  const [noticeTitle, setNoticeTitle] = useState("");
+  const [noticeMessage, setNoticeMessage] = useState("");
+  const [postingNotice, setPostingNotice] = useState(false);
 
   const load = async () => {
     try {
       setLoading(true);
 
-      const [usersRes, pendingRes] = await Promise.all([
+      const [usersRes, pendingRes, noticesRes] = await Promise.all([
         axios.get(`${API.auth}/auth/users`, { headers: authHeaders() }),
         axios.get(`${API.auth}/auth/doctors/pending`, { headers: authHeaders() }),
+        axios.get(`${API.auth}/notices/admin/all`, { headers: authHeaders() }),
       ]);
 
       setUsers(usersRes.data);
       setPendingDoctors(pendingRes.data);
+      setNotices(noticesRes.data);
     } catch (err) {
       console.error(err);
       alert("Failed to load admin data");
@@ -62,6 +68,50 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       alert("Failed to update user status");
+    }
+  };
+
+  const postNotice = async () => {
+    try {
+      if (!noticeTitle.trim() || !noticeMessage.trim()) {
+        alert("Please enter both notice title and message");
+        return;
+      }
+
+      setPostingNotice(true);
+
+      await axios.post(
+        `${API.auth}/notices`,
+        {
+          title: noticeTitle,
+          message: noticeMessage,
+        },
+        { headers: authHeaders() }
+      );
+
+      alert("Notice posted successfully");
+      setNoticeTitle("");
+      setNoticeMessage("");
+      load();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to post notice");
+    } finally {
+      setPostingNotice(false);
+    }
+  };
+
+  const toggleNotice = async (noticeId) => {
+    try {
+      await axios.patch(
+        `${API.auth}/notices/${noticeId}/toggle`,
+        {},
+        { headers: authHeaders() }
+      );
+      load();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update notice");
     }
   };
 
@@ -207,6 +257,67 @@ export default function AdminDashboard() {
                 <div style={styles.statValue}>{stats.disabledUsers}</div>
                 <div style={styles.statLabel}>Disabled Users</div>
               </div>
+            </div>
+          </div>
+
+          <div style={styles.noticeSection}>
+            <div style={styles.noticeFormCard}>
+              <h2 style={styles.noticeTitle}>Post Notice</h2>
+
+              <input
+                type="text"
+                placeholder="Enter notice title..."
+                value={noticeTitle}
+                onChange={(e) => setNoticeTitle(e.target.value)}
+                style={styles.noticeInput}
+              />
+
+              <textarea
+                placeholder="Enter notice message..."
+                value={noticeMessage}
+                onChange={(e) => setNoticeMessage(e.target.value)}
+                style={styles.noticeTextarea}
+                rows={4}
+              />
+
+              <button onClick={postNotice} style={styles.postNoticeBtn} disabled={postingNotice}>
+                {postingNotice ? "Posting..." : "Post Notice"}
+              </button>
+            </div>
+
+            <div style={styles.noticeListCard}>
+              <h2 style={styles.noticeTitle}>Posted Notices</h2>
+
+              {notices.length === 0 ? (
+                <p style={styles.noticeEmpty}>No notices posted yet.</p>
+              ) : (
+                <div style={styles.noticeList}>
+                  {notices.map((notice) => (
+                    <div key={notice._id} style={styles.noticeItem}>
+                      <div style={styles.noticeItemHeader}>
+                        <div>
+                          <div style={styles.noticeItemTitle}>{notice.title}</div>
+                          <div style={styles.noticeItemDate}>
+                            {new Date(notice.createdAt).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => toggleNotice(notice._id)}
+                          style={notice.isActive ? styles.deactivateBtn : styles.activateBtn}
+                        >
+                          {notice.isActive ? "Deactivate" : "Activate"}
+                        </button>
+                      </div>
+
+                      <div style={styles.noticeItemMessage}>{notice.message}</div>
+                      <div style={styles.noticeStatus}>
+                        Status: {notice.isActive ? "Active" : "Inactive"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -798,6 +909,127 @@ const styles = {
     fontSize: "13px",
     color: "#5e7a93",
     padding: "20px",
+  },
+  noticeSection: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "24px",
+    marginBottom: "32px",
+  },
+  noticeFormCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+  },
+  noticeListCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+    maxHeight: "500px",
+    overflowY: "auto",
+  },
+  noticeTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+    marginBottom: "16px",
+  },
+  noticeInput: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1.5px solid #e2e8f0",
+    marginBottom: "14px",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    boxSizing: "border-box",
+  },
+  noticeTextarea: {
+    width: "100%",
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1.5px solid #e2e8f0",
+    marginBottom: "14px",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    resize: "vertical",
+    boxSizing: "border-box",
+  },
+  postNoticeBtn: {
+    padding: "12px 20px",
+    backgroundColor: "#1e6f5c",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "40px",
+    fontSize: "14px",
+    fontWeight: "600",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  },
+  noticeEmpty: {
+    fontSize: "14px",
+    color: "#5e7a93",
+  },
+  noticeList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+  noticeItem: {
+    border: "1px solid #eef2f6",
+    borderRadius: "16px",
+    padding: "16px",
+    backgroundColor: "#f8fafc",
+  },
+  noticeItemHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "12px",
+    marginBottom: "10px",
+  },
+  noticeItemTitle: {
+    fontSize: "16px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+  },
+  noticeItemDate: {
+    fontSize: "12px",
+    color: "#5e7a93",
+    marginTop: "4px",
+  },
+  noticeItemMessage: {
+    fontSize: "14px",
+    color: "#334155",
+    lineHeight: "1.5",
+    marginBottom: "10px",
+  },
+  noticeStatus: {
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#5e7a93",
+  },
+  deactivateBtn: {
+    padding: "8px 14px",
+    backgroundColor: "#ffebee",
+    color: "#c62828",
+    border: "none",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+  activateBtn: {
+    padding: "8px 14px",
+    backgroundColor: "#e8f5e9",
+    color: "#2e7d32",
+    border: "none",
+    borderRadius: "20px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
   },
 };
 

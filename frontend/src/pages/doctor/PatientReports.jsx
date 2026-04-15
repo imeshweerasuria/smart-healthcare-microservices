@@ -1,14 +1,21 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { API, authHeaders } from "../../api/client";
+import { clearSession } from "../../api/auth";
 
 export default function PatientReports() {
+  const navigate = useNavigate();
   const [patientId, setPatientId] = useState("");
   const [profile, setProfile] = useState(null);
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchAttempted, setSearchAttempted] = useState(false);
+
+  const logout = () => {
+    clearSession();
+    navigate("/login");
+  };
 
   const loadPatientData = async () => {
     if (!patientId.trim()) {
@@ -104,6 +111,10 @@ export default function PatientReports() {
             <span style={styles.navIcon}>💊</span>
             <span>My Issued Prescriptions</span>
           </Link>
+          <button onClick={logout} style={styles.logoutBtn}>
+            <span style={styles.navIcon}>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -432,6 +443,22 @@ const styles = {
   },
   navIcon: {
     fontSize: "18px",
+  },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#d32f2f",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    fontFamily: "inherit",
+    marginTop: "auto",
+    transition: "all 0.2s ease",
   },
   mainContent: {
     flex: 1,
@@ -813,6 +840,12 @@ if (typeof document !== "undefined") {
     
     .nav-item:hover {
       background-color: #f8fafc;
+      transform: translateX(4px);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
     }
     
     button:disabled {

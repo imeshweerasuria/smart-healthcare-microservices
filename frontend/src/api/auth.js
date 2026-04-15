@@ -44,10 +44,8 @@ export async function login(payload) {
   return res.data;
 }
 
-export async function googleLogin(credential) {
-  const res = await axios.post(`${API.auth}/auth/google-login`, {
-    credential,
-  });
+export async function googleLogin(payload) {
+  const res = await axios.post(`${API.auth}/auth/google-login`, payload);
   return res.data;
 }
 

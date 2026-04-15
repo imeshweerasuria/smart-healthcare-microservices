@@ -7,7 +7,10 @@ import { clearSession, getName } from "../../api/auth";
 export default function PatientDashboard() {
   const navigate = useNavigate();
   const [queueAppointments, setQueueAppointments] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]);
   const [queueLoading, setQueueLoading] = useState(true);
+  const [notices, setNotices] = useState([]);
+  const [noticeLoading, setNoticeLoading] = useState(true);
 
   const logout = () => {
     clearSession();
@@ -21,7 +24,10 @@ export default function PatientDashboard() {
         headers: authHeaders(),
       });
 
-      const live = res.data
+      const appointments = Array.isArray(res.data) ? res.data : [];
+      setAllAppointments(appointments);
+
+      const live = appointments
         .filter((a) => ["ACCEPTED", "CONFIRMED"].includes(a.status))
         .sort((a, b) => {
           const aAhead = a.queue?.patientsAhead ?? 999;
@@ -32,13 +38,30 @@ export default function PatientDashboard() {
       setQueueAppointments(live);
     } catch (err) {
       console.error("Failed to load queue appointments:", err);
+      setAllAppointments([]);
       setQueueAppointments([]);
     } finally {
       setQueueLoading(false);
     }
   };
 
+  const loadNotices = async () => {
+    try {
+      setNoticeLoading(true);
+      const res = await axios.get(`${API.auth}/notices`, {
+        headers: authHeaders(),
+      });
+      setNotices(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Failed to load notices:", err);
+      setNotices([]);
+    } finally {
+      setNoticeLoading(false);
+    }
+  };
+
   const navItems = [
+    { path: "/patient/home", label: "Home", icon: "🏠", active: false },
     { path: "/patient/profile", label: "My Profile", icon: "👤", active: false },
     { path: "/patient/medical-record", label: "My Medical Record", icon: "📋", active: false },
     { path: "/patient/doctors", label: "Browse Doctors", icon: "👨‍⚕️", active: false },
@@ -49,11 +72,34 @@ export default function PatientDashboard() {
     { path: "/patient/payments", label: "My Payments", icon: "💰", active: false },
   ];
 
+  const dashboardStats = {
+    totalAppointments: allAppointments.length,
+    pendingAppointments: allAppointments.filter((a) => a.status === "PENDING").length,
+    activeAppointments: allAppointments.filter((a) =>
+      ["ACCEPTED", "CONFIRMED"].includes(a.status)
+    ).length,
+    completedAppointments: allAppointments.filter((a) => a.status === "COMPLETED").length,
+    cancelledAppointments: allAppointments.filter((a) =>
+      ["CANCELLED", "REJECTED"].includes(a.status)
+    ).length,
+    paidAppointments: allAppointments.filter((a) => a.paymentStatus === "PAID").length,
+  };
+
+  // Calculate percentages for progress bars
+  const total = dashboardStats.totalAppointments || 1;
+  const pendingPercentage = (dashboardStats.pendingAppointments / total) * 100;
+  const activePercentage = (dashboardStats.activeAppointments / total) * 100;
+  const completedPercentage = (dashboardStats.completedAppointments / total) * 100;
+  const cancelledPercentage = (dashboardStats.cancelledAppointments / total) * 100;
+  const paidPercentage = (dashboardStats.paidAppointments / total) * 100;
+
   useEffect(() => {
     loadQueueAppointments();
+    loadNotices();
 
     const interval = setInterval(() => {
       loadQueueAppointments();
+      loadNotices();
     }, 8000);
 
     return () => clearInterval(interval);
@@ -115,9 +161,38 @@ export default function PatientDashboard() {
           </div>
         </div>
 
+        {/* Notice Board Card */}
+        <div style={styles.noticeBoardCard}>
+          <div style={styles.noticeBoardHeader}>
+            <span style={styles.noticeBoardIcon}>📢</span>
+            <div>
+              <h2 style={styles.noticeBoardTitle}>Important Notices</h2>
+              <p style={styles.noticeBoardSubtitle}>Important updates from MediBook</p>
+            </div>
+          </div>
+
+          {noticeLoading ? (
+            <p style={styles.noticeBoardText}>Loading notices...</p>
+          ) : notices.length === 0 ? (
+            <p style={styles.noticeBoardText}>No notices available right now.</p>
+          ) : (
+            <div style={styles.noticeBoardList}>
+              {notices.map((notice) => (
+                <div key={notice._id} style={styles.noticeBoardItem}>
+                  <div style={styles.noticeBoardItemTitle}>{notice.title}</div>
+                  <div style={styles.noticeBoardItemMessage}>{notice.message}</div>
+                  <div style={styles.noticeBoardItemDate}>
+                    Posted on {new Date(notice.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Live Queue Status Card */}
         <div style={styles.welcomeCard}>
-          <div style={styles.welcomeIcon}>📍</div>
+          
           <div style={{ width: "100%" }}>
             <h2 style={styles.welcomeTitle}>Live Queue Status</h2>
 
@@ -184,46 +259,173 @@ export default function PatientDashboard() {
           </div>
         </div>
 
-        {/* Quick Actions Grid */}
+        {/* Stats Grid */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd"}}>📅</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#e3f2fd" }}>📅</div>
             <div>
-              <div style={styles.statValue}>Upcoming</div>
-              <div style={styles.statLabel}>Appointments</div>
+              <div style={styles.statValue}>{dashboardStats.totalAppointments}</div>
+              <div style={styles.statLabel}>Total Appointments Made</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9"}}>💊</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#fff3e0" }}>⏳</div>
             <div>
-              <div style={styles.statValue}>Active</div>
-              <div style={styles.statLabel}>Prescriptions</div>
+              <div style={styles.statValue}>{dashboardStats.pendingAppointments}</div>
+              <div style={styles.statLabel}>Pending Appointments</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#fff3e0"}}>📄</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#e8f5e9" }}>✅</div>
             <div>
-              <div style={styles.statValue}>Medical</div>
-              <div style={styles.statLabel}>Records</div>
+              <div style={styles.statValue}>{dashboardStats.activeAppointments}</div>
+              <div style={styles.statLabel}>Active Appointments</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#f3e5f5"}}>💰</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#ede7f6" }}>🏁</div>
             <div>
-              <div style={styles.statValue}>Payment</div>
-              <div style={styles.statLabel}>History</div>
+              <div style={styles.statValue}>{dashboardStats.completedAppointments}</div>
+              <div style={styles.statLabel}>Completed Appointments</div>
+            </div>
+          </div>
+
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, backgroundColor: "#ffebee" }}>❌</div>
+            <div>
+              <div style={styles.statValue}>{dashboardStats.cancelledAppointments}</div>
+              <div style={styles.statLabel}>Cancelled / Rejected</div>
+            </div>
+          </div>
+
+          <div style={styles.statCard}>
+            <div style={{ ...styles.statIcon, backgroundColor: "#f3e5f5" }}>💳</div>
+            <div>
+              <div style={styles.statValue}>{dashboardStats.paidAppointments}</div>
+              <div style={styles.statLabel}>Paid Appointments</div>
             </div>
           </div>
         </div>
 
-        {/* Navigation Cards */}
-        <div style={styles.navGrid}>
-          {navItems.map((item) => (
-            <Link key={item.path} to={item.path} style={styles.navCard}>
-              <div style={styles.navCardIcon}>{item.icon}</div>
-              <div style={styles.navCardLabel}>{item.label}</div>
-            </Link>
-          ))}
+        {/* Patient Summary Section with Progress Bars */}
+        <div style={styles.summarySection}>
+          <h2 style={styles.sectionTitle}>Appointment Analytics</h2>
+
+          <div style={styles.progressContainer}>
+            {/* Pending Progress */}
+            <div style={styles.progressItem}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Pending Appointments</span>
+                <span style={styles.progressValue}>{dashboardStats.pendingAppointments} / {total}</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div 
+                  style={{ 
+                    ...styles.progressBarFill, 
+                    width: `${pendingPercentage}%`,
+                    backgroundColor: "#ff9800"
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Active Progress */}
+            <div style={styles.progressItem}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Active Appointments</span>
+                <span style={styles.progressValue}>{dashboardStats.activeAppointments} / {total}</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div 
+                  style={{ 
+                    ...styles.progressBarFill, 
+                    width: `${activePercentage}%`,
+                    backgroundColor: "#2196f3"
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Completed Progress */}
+            <div style={styles.progressItem}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Completed Appointments</span>
+                <span style={styles.progressValue}>{dashboardStats.completedAppointments} / {total}</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div 
+                  style={{ 
+                    ...styles.progressBarFill, 
+                    width: `${completedPercentage}%`,
+                    backgroundColor: "#4caf50"
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Cancelled Progress */}
+            <div style={styles.progressItem}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Cancelled / Rejected</span>
+                <span style={styles.progressValue}>{dashboardStats.cancelledAppointments} / {total}</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div 
+                  style={{ 
+                    ...styles.progressBarFill, 
+                    width: `${cancelledPercentage}%`,
+                    backgroundColor: "#f44336"
+                  }} 
+                />
+              </div>
+            </div>
+
+            {/* Paid Progress */}
+            <div style={styles.progressItem}>
+              <div style={styles.progressHeader}>
+                <span style={styles.progressLabel}>Paid Appointments</span>
+                <span style={styles.progressValue}>{dashboardStats.paidAppointments} / {total}</span>
+              </div>
+              <div style={styles.progressBarBg}>
+                <div 
+                  style={{ 
+                    ...styles.progressBarFill, 
+                    width: `${paidPercentage}%`,
+                    backgroundColor: "#9c27b0"
+                  }} 
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Queue Status Card */}
+          <div style={styles.queueStatusCard}>
+            <div style={styles.queueStatusHeader}>
+              <span style={styles.queueStatusIcon}>📍</span>
+              <span style={styles.queueStatusTitle}>Current Queue Status</span>
+            </div>
+            <div style={styles.queueStatusContent}>
+              {queueLoading ? (
+                <p>Loading queue status...</p>
+              ) : queueAppointments.length > 0 ? (
+                <>
+                  <div style={styles.queueStatusValue}>
+                    {queueAppointments.length} Active Queue Appointment(s)
+                  </div>
+                  <div style={styles.queueStatusText}>
+                    You currently have accepted or confirmed appointments in the live queue.
+                  </div>
+                </>
+              ) : (
+                <div style={styles.queueStatusText}>
+                  You do not have any active queue appointments right now.
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -417,9 +619,67 @@ const styles = {
     color: "#5e7a93",
     margin: 0,
   },
+  noticeBoardCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "24px",
+    marginBottom: "32px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+  },
+  noticeBoardHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    marginBottom: "18px",
+  },
+  noticeBoardIcon: {
+    fontSize: "32px",
+  },
+  noticeBoardTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+    margin: 0,
+  },
+  noticeBoardSubtitle: {
+    fontSize: "13px",
+    color: "#5e7a93",
+    margin: "4px 0 0 0",
+  },
+  noticeBoardText: {
+    fontSize: "14px",
+    color: "#5e7a93",
+  },
+  noticeBoardList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "14px",
+  },
+  noticeBoardItem: {
+    backgroundColor: "#f8fafc",
+    border: "1px solid #eef2f6",
+    borderRadius: "14px",
+    padding: "16px",
+  },
+  noticeBoardItemTitle: {
+    fontSize: "16px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+    marginBottom: "6px",
+  },
+  noticeBoardItemMessage: {
+    fontSize: "14px",
+    color: "#334155",
+    lineHeight: "1.5",
+    marginBottom: "8px",
+  },
+  noticeBoardItemDate: {
+    fontSize: "12px",
+    color: "#64748b",
+  },
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
+    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
     gap: "24px",
     marginBottom: "32px",
     width: "100%",
@@ -453,39 +713,86 @@ const styles = {
     color: "#5e7a93",
     fontWeight: "500",
   },
-  navGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(4, 1fr)",
-    gap: "24px",
+  summarySection: {
     width: "100%",
   },
-  navCard: {
+  sectionTitle: {
+    fontSize: "22px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+    marginBottom: "20px",
+  },
+  progressContainer: {
     backgroundColor: "#ffffff",
     borderRadius: "20px",
     padding: "24px",
-    display: "flex",
-    alignItems: "center",
-    gap: "16px",
-    textDecoration: "none",
-    transition: "all 0.2s ease",
+    marginBottom: "24px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-    cursor: "pointer",
   },
-  navCardIcon: {
-    width: "48px",
-    height: "48px",
-    backgroundColor: "#e8f5e9",
-    borderRadius: "24px",
+  progressItem: {
+    marginBottom: "20px",
+  },
+  progressHeader: {
     display: "flex",
+    justifyContent: "space-between",
     alignItems: "center",
-    justifyContent: "center",
-    fontSize: "24px",
-    color: "#1e6f5c",
+    marginBottom: "8px",
   },
-  navCardLabel: {
-    fontSize: "16px",
+  progressLabel: {
+    fontSize: "14px",
     fontWeight: "500",
     color: "#1a2c3e",
+  },
+  progressValue: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#5e7a93",
+  },
+  progressBarBg: {
+    backgroundColor: "#eef2f6",
+    borderRadius: "10px",
+    height: "8px",
+    overflow: "hidden",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: "10px",
+    transition: "width 0.3s ease",
+  },
+  queueStatusCard: {
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
+  },
+  queueStatusHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px",
+  },
+  queueStatusIcon: {
+    fontSize: "24px",
+  },
+  queueStatusTitle: {
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#1a2c3e",
+  },
+  queueStatusContent: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+  queueStatusValue: {
+    fontSize: "28px",
+    fontWeight: "700",
+    color: "#1e6f5c",
+  },
+  queueStatusText: {
+    fontSize: "14px",
+    color: "#5e7a93",
+    lineHeight: "1.5",
   },
 };
 
@@ -513,10 +820,9 @@ styleSheet.textContent = `
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
   
-  .nav-item:hover, .nav-card:hover {
+  .nav-item:hover {
     background-color: #f8fafc;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    transform: translateX(4px);
   }
 `;
 

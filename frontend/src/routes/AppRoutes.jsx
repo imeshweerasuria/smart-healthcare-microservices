@@ -5,6 +5,7 @@ import { getRole, isLoggedIn } from "../api/auth";
 // Pages
 import Login from "../pages/auth/Login";
 import Register from "../pages/auth/Register";
+import PatientHome from "../pages/home";
 
 // Patient pages
 import PatientDashboard from "../pages/patient/PatientDashboard";
@@ -41,7 +42,7 @@ import AdminReports from "../pages/admin/AdminReports";
 function HomeRedirect() {
   if (!isLoggedIn()) return <Navigate to="/login" replace />;
   const role = getRole();
-  if (role === "PATIENT") return <Navigate to="/patient" replace />;
+  if (role === "PATIENT") return <Navigate to="/patient/home" replace />;
   if (role === "DOCTOR") return <Navigate to="/doctor" replace />;
   if (role === "ADMIN") return <Navigate to="/admin" replace />;
   return <Navigate to="/login" replace />;
@@ -56,6 +57,7 @@ export default function AppRoutes() {
         <Route path="/register" element={<Register />} />
 
         {/* PATIENT */}
+        <Route path="/patient/home" element={<ProtectedRoute roles={["PATIENT"]}><PatientHome /></ProtectedRoute>} />
         <Route path="/patient" element={<ProtectedRoute roles={["PATIENT"]}><PatientDashboard /></ProtectedRoute>} />
         <Route path="/patient/profile" element={<ProtectedRoute roles={["PATIENT"]}><PatientProfile /></ProtectedRoute>} />
         <Route path="/patient/medical-record" element={<ProtectedRoute roles={["PATIENT"]}><PatientMedicalRecord /></ProtectedRoute>} />
@@ -66,11 +68,10 @@ export default function AppRoutes() {
         <Route path="/patient/reports" element={<ProtectedRoute roles={["PATIENT"]}><MyReports /></ProtectedRoute>} />
         <Route path="/patient/prescriptions" element={<ProtectedRoute roles={["PATIENT"]}><MyPrescriptions /></ProtectedRoute>} />
         <Route path="/patient/payments" element={<ProtectedRoute roles={["PATIENT"]}><MyPayments /></ProtectedRoute>} />
-        <Route path="/patient/payments/create" element={<ProtectedRoute roles={["PATIENT"]}><PaymentForAppointment /></ProtectedRoute>}/>
-        <Route path="/patient/payment/success" element={<ProtectedRoute roles={["PATIENT"]}><PaymentSuccess /></ProtectedRoute>}/>
-        <Route path="/patient/payment-test" element={<ProtectedRoute roles={["PATIENT"]}><PaymentTest /></ProtectedRoute>}/>
+        <Route path="/patient/payments/create" element={<ProtectedRoute roles={["PATIENT"]}><PaymentForAppointment /></ProtectedRoute>} />
+        <Route path="/patient/payment/success" element={<ProtectedRoute roles={["PATIENT"]}><PaymentSuccess /></ProtectedRoute>} />
+        <Route path="/patient/payment-test" element={<ProtectedRoute roles={["PATIENT"]}><PaymentTest /></ProtectedRoute>} />
 
-        
         {/* DOCTOR */}
         <Route path="/doctor" element={<ProtectedRoute roles={["DOCTOR"]}><DoctorDashboard /></ProtectedRoute>} />
         <Route path="/doctor/profile" element={<ProtectedRoute roles={["DOCTOR"]}><DoctorProfile /></ProtectedRoute>} />
@@ -81,12 +82,12 @@ export default function AppRoutes() {
         <Route path="/doctor/prescribe/:patientId" element={<ProtectedRoute roles={["DOCTOR"]}><IssuePrescription /></ProtectedRoute>} />
 
         {/* ADMIN */}
-<Route path="/admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
-<Route path="/admin/doctors" element={<ProtectedRoute roles={["ADMIN"]}><AdminManageDoctors /></ProtectedRoute>} />
-<Route path="/admin/patients" element={<ProtectedRoute roles={["ADMIN"]}><AdminManagePatients /></ProtectedRoute>} />
-<Route path="/admin/appointments" element={<ProtectedRoute roles={["ADMIN"]}><AdminAppointments /></ProtectedRoute>} />
-<Route path="/admin/payments" element={<ProtectedRoute roles={["ADMIN"]}><AdminPaymentSummary /></ProtectedRoute>} />
-<Route path="/admin/reports" element={<ProtectedRoute roles={["ADMIN"]}><AdminReports /></ProtectedRoute>}  />
+        <Route path="/admin" element={<ProtectedRoute roles={["ADMIN"]}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="/admin/doctors" element={<ProtectedRoute roles={["ADMIN"]}><AdminManageDoctors /></ProtectedRoute>} />
+        <Route path="/admin/patients" element={<ProtectedRoute roles={["ADMIN"]}><AdminManagePatients /></ProtectedRoute>} />
+        <Route path="/admin/appointments" element={<ProtectedRoute roles={["ADMIN"]}><AdminAppointments /></ProtectedRoute>} />
+        <Route path="/admin/payments" element={<ProtectedRoute roles={["ADMIN"]}><AdminPaymentSummary /></ProtectedRoute>} />
+        <Route path="/admin/reports" element={<ProtectedRoute roles={["ADMIN"]}><AdminReports /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );
