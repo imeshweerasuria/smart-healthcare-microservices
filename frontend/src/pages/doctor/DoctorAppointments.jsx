@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
+import { clearSession } from "../../api/auth";
 
 export default function DoctorAppointments() {
+  const navigate = useNavigate();
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("all");
+
+  const logout = () => {
+    clearSession();
+    navigate("/login");
+  };
 
   // Helper function to check if payment is paid (case-insensitive)
   const isPaid = (status) => {
@@ -185,6 +192,10 @@ export default function DoctorAppointments() {
             <span style={styles.navIcon}>💊</span>
             <span>My Issued Prescriptions</span>
           </Link>
+          <button onClick={logout} style={styles.logoutBtn}>
+            <span style={styles.navIcon}>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -336,6 +347,7 @@ export default function DoctorAppointments() {
                         {a.patientName?.charAt(0) || "P"}
                       </div>
                       <div>
+                        <div style={styles.patientName}>{a.patientName || "Unknown Patient"}</div>
                         <div style={styles.patientId}>Patient ID: {a.patientId}</div>
                         <div style={styles.appointmentDate}>
                           📅 Requested on: {formatSafeDate(a.createdAt)}
@@ -433,7 +445,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",          // Force full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -541,14 +553,30 @@ const styles = {
   navIcon: {
     fontSize: "18px",
   },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#d32f2f",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    fontFamily: "inherit",
+    marginTop: "auto",
+    transition: "all 0.2s ease",
+  },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",           // Take full height of container
-    overflowY: "auto",        // Scroll if content overflows
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
     display: "flex",
@@ -697,10 +725,16 @@ const styles = {
     fontWeight: "600",
     color: "#1e6f5c",
   },
-  patientId: {
-    fontSize: "16px",
-    fontWeight: "600",
+  patientName: {
+    fontSize: "17px",
+    fontWeight: "700",
     color: "#1a2c3e",
+    marginBottom: "4px",
+  },
+  patientId: {
+    fontSize: "13px",
+    fontWeight: "500",
+    color: "#5e7a93",
     marginBottom: "4px",
   },
   appointmentDate: {
@@ -904,6 +938,11 @@ if (typeof document !== "undefined") {
     .nav-item:hover, .appointment-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
     }
     
     a:hover {

@@ -1,13 +1,103 @@
 import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import axios from "axios";
+import { API, authHeaders } from "../../api/client";
 import { clearSession, getName } from "../../api/auth";
 
 export default function DoctorDashboard() {
   const navigate = useNavigate();
+  const [appointments, setAppointments] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const logout = () => {
     clearSession();
     navigate("/login");
   };
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+
+      const res = await axios.get(`${API.appointment}/appointments/doctor/me`, {
+        headers: authHeaders(),
+      });
+
+      const data = Array.isArray(res.data) ? res.data : [];
+      setAppointments(data);
+    } catch (err) {
+      console.error("Failed to load doctor dashboard data:", err);
+      setAppointments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const dashboardStats = useMemo(() => {
+    const today = new Date();
+
+    const isSameDay = (value) => {
+      if (!value) return false;
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return false;
+
+      return (
+        d.getFullYear() === today.getFullYear() &&
+        d.getMonth() === today.getMonth() &&
+        d.getDate() === today.getDate()
+      );
+    };
+
+    const todayRequests = appointments.filter((a) => isSameDay(a.createdAt)).length;
+
+    const upcomingAppointments = appointments.filter((a) =>
+      ["ACCEPTED", "CONFIRMED"].includes(a.status)
+    ).length;
+
+    const totalPatients = new Set(
+      appointments.map((a) => a.patientId).filter(Boolean)
+    ).size;
+
+    const completedAppointments = appointments.filter(
+      (a) => a.status === "COMPLETED"
+    ).length;
+
+    const pendingAppointments = appointments.filter(
+      (a) => a.status === "PENDING"
+    ).length;
+
+    const rejectedAppointments = appointments.filter(
+      (a) => a.status === "REJECTED"
+    ).length;
+
+    const totalAppointments = appointments.length;
+
+    return {
+      todayRequests,
+      upcomingAppointments,
+      totalPatients,
+      completedAppointments,
+      pendingAppointments,
+      rejectedAppointments,
+      totalAppointments,
+    };
+  }, [appointments]);
+
+  // Calculate percentages for progress bars
+  const completionRate = dashboardStats.totalAppointments > 0 
+    ? (dashboardStats.completedAppointments / dashboardStats.totalAppointments) * 100 
+    : 0;
+  
+  const acceptanceRate = dashboardStats.totalAppointments > 0 
+    ? ((dashboardStats.upcomingAppointments + dashboardStats.completedAppointments) / dashboardStats.totalAppointments) * 100 
+    : 0;
+  
+  const pendingRate = dashboardStats.totalAppointments > 0 
+    ? (dashboardStats.pendingAppointments / dashboardStats.totalAppointments) * 100 
+    : 0;
 
   return (
     <div style={styles.container}>
@@ -77,110 +167,224 @@ export default function DoctorDashboard() {
         {/* Quick Stats Cards */}
         <div style={styles.statsGrid}>
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e3f2fd", color: "#1976d2"}}>📅</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#e3f2fd", color: "#1976d2" }}>📅</div>
             <div>
-              <div style={styles.statValue}>0</div>
-              <div style={styles.statLabel}>Today's Appointments</div>
+              <div style={styles.statValue}>
+                {loading ? "..." : dashboardStats.todayRequests}
+              </div>
+              <div style={styles.statLabel}>Today's Requests</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#e8f5e9", color: "#2e7d32"}}>⏰</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#e8f5e9", color: "#2e7d32" }}>⏰</div>
             <div>
-              <div style={styles.statValue}>0</div>
-              <div style={styles.statLabel}>Upcoming Appointments</div>
+              <div style={styles.statValue}>
+                {loading ? "..." : dashboardStats.upcomingAppointments}
+              </div>
+              <div style={styles.statLabel}>Accepted / Confirmed</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#fff3e0", color: "#ed6c02"}}>👥</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#fff3e0", color: "#ed6c02" }}>👥</div>
             <div>
-              <div style={styles.statValue}>0</div>
-              <div style={styles.statLabel}>Total Patients</div>
+              <div style={styles.statValue}>
+                {loading ? "..." : dashboardStats.totalPatients}
+              </div>
+              <div style={styles.statLabel}>Unique Patients</div>
             </div>
           </div>
+
           <div style={styles.statCard}>
-            <div style={{...styles.statIcon, backgroundColor: "#f3e5f5", color: "#9c27b0"}}>💊</div>
+            <div style={{ ...styles.statIcon, backgroundColor: "#ede7f6", color: "#6a1b9a" }}>✅</div>
             <div>
-              <div style={styles.statValue}>0</div>
-              <div style={styles.statLabel}>Active Prescriptions</div>
+              <div style={styles.statValue}>
+                {loading ? "..." : dashboardStats.completedAppointments}
+              </div>
+              <div style={styles.statLabel}>Completed Appointments</div>
             </div>
           </div>
         </div>
 
-        {/* Quick Actions Section */}
-        <div style={styles.quickActions}>
-          <h3 style={styles.sectionTitle}>Quick Actions</h3>
-          <div style={styles.actionGrid}>
-            <Link to="/doctor/availability" style={styles.actionCard}>
-              <div style={styles.actionIcon}>📅</div>
-              <div style={styles.actionText}>Set Availability</div>
-              <div style={styles.actionDesc}>Update your working hours</div>
-            </Link>
-            <Link to="/doctor/appointments" style={styles.actionCard}>
-              <div style={styles.actionIcon}>📋</div>
-              <div style={styles.actionText}>View Requests</div>
-              <div style={styles.actionDesc}>Check appointment requests</div>
-            </Link>
-            <Link to="/doctor/patient-reports" style={styles.actionCard}>
-              <div style={styles.actionIcon}>📊</div>
-              <div style={styles.actionText}>Patient Reports</div>
-              <div style={styles.actionDesc}>Review and create reports</div>
-            </Link>
-            <Link to="/doctor/prescriptions" style={styles.actionCard}>
-              <div style={styles.actionIcon}>💊</div>
-              <div style={styles.actionText}>New Prescription</div>
-              <div style={styles.actionDesc}>Issue medications</div>
-            </Link>
+        {/* Performance Metrics Section with Progress Bars */}
+        <div style={styles.metricsSection}>
+          <h3 style={styles.sectionTitle}>Practice Performance</h3>
+          <div style={styles.metricsGrid}>
+            {/* Completion Rate */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>🎯</span>
+                <span style={styles.metricTitle}>Completion Rate</span>
+                <span style={styles.metricPercentage}>
+                  {loading ? "..." : `${Math.round(completionRate)}%`}
+                </span>
+              </div>
+              <div style={styles.progressBarContainer}>
+                <div 
+                  style={{
+                    ...styles.progressBarFill,
+                    width: loading ? "0%" : `${completionRate}%`,
+                    backgroundColor: "#4caf50",
+                    animation: loading ? "none" : "growWidth 1s ease-out"
+                  }}
+                />
+              </div>
+              <div style={styles.metricDetails}>
+                <span>✅ {dashboardStats.completedAppointments} completed</span>
+                <span>📋 {dashboardStats.totalAppointments} total</span>
+              </div>
+            </div>
+
+            {/* Acceptance Rate */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>📊</span>
+                <span style={styles.metricTitle}>Acceptance Rate</span>
+                <span style={styles.metricPercentage}>
+                  {loading ? "..." : `${Math.round(acceptanceRate)}%`}
+                </span>
+              </div>
+              <div style={styles.progressBarContainer}>
+                <div 
+                  style={{
+                    ...styles.progressBarFill,
+                    width: loading ? "0%" : `${acceptanceRate}%`,
+                    backgroundColor: "#2196f3",
+                    animation: loading ? "none" : "growWidth 1s ease-out"
+                  }}
+                />
+              </div>
+              <div style={styles.metricDetails}>
+                <span>✓ {dashboardStats.upcomingAppointments + dashboardStats.completedAppointments} accepted</span>
+                <span>⏳ {dashboardStats.pendingAppointments} pending</span>
+              </div>
+            </div>
+
+            {/* Pending Rate */}
+            <div style={styles.metricCard}>
+              <div style={styles.metricHeader}>
+                <span style={styles.metricIcon}>⏳</span>
+                <span style={styles.metricTitle}>Pending Rate</span>
+                <span style={styles.metricPercentage}>
+                  {loading ? "..." : `${Math.round(pendingRate)}%`}
+                </span>
+              </div>
+              <div style={styles.progressBarContainer}>
+                <div 
+                  style={{
+                    ...styles.progressBarFill,
+                    width: loading ? "0%" : `${pendingRate}%`,
+                    backgroundColor: "#ff9800",
+                    animation: loading ? "none" : "growWidth 1s ease-out"
+                  }}
+                />
+              </div>
+              <div style={styles.metricDetails}>
+                <span>⏰ {dashboardStats.pendingAppointments} pending</span>
+                <span>📊 needs your attention</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Recent Activity & Upcoming Section - Realistic Touch */}
+        {/* Recent Activity & Upcoming Section */}
         <div style={styles.recentSection}>
           <div style={styles.recentCard}>
             <div style={styles.cardHeader}>
               <span style={styles.cardTitle}>Recent Activity</span>
-              <span style={styles.cardBadge}>Last 7 days</span>
+              <span style={styles.cardBadge}>Overview</span>
             </div>
             <div style={styles.activityList}>
               <div style={styles.activityItem}>
-                <div style={styles.activityIcon}>📝</div>
+                <div style={styles.activityIcon}>⏳</div>
                 <div style={styles.activityContent}>
-                  <div style={styles.activityText}>No recent appointments</div>
-                  <div style={styles.activityTime}>—</div>
+                  <div style={styles.activityText}>
+                    Pending requests: {loading ? "..." : dashboardStats.pendingAppointments}
+                  </div>
+                  <div style={styles.activityTime}>Appointments waiting for your action</div>
                 </div>
               </div>
+
               <div style={styles.activityItem}>
-                <div style={styles.activityIcon}>💊</div>
+                <div style={styles.activityIcon}>❌</div>
                 <div style={styles.activityContent}>
-                  <div style={styles.activityText}>No recent prescriptions</div>
-                  <div style={styles.activityTime}>—</div>
+                  <div style={styles.activityText}>
+                    Rejected requests: {loading ? "..." : dashboardStats.rejectedAppointments}
+                  </div>
+                  <div style={styles.activityTime}>Requests you declined</div>
+                </div>
+              </div>
+
+              <div style={styles.activityItem}>
+                <div style={styles.activityIcon}>✅</div>
+                <div style={styles.activityContent}>
+                  <div style={styles.activityText}>
+                    Completed: {loading ? "..." : dashboardStats.completedAppointments}
+                  </div>
+                  <div style={styles.activityTime}>Successfully finished consultations</div>
                 </div>
               </div>
             </div>
           </div>
+          
           <div style={styles.upcomingCard}>
             <div style={styles.cardHeader}>
               <span style={styles.cardTitle}>Upcoming Schedule</span>
-              <span style={styles.cardBadge}>Next 3 days</span>
+              <span style={styles.cardBadge}>Active Queue</span>
             </div>
             <div style={styles.schedulePlaceholder}>
               <div style={styles.emptyStateIcon}>📅</div>
-              <p style={styles.emptyStateText}>No upcoming appointments</p>
+              <p style={styles.emptyStateText}>
+                {loading
+                  ? "Loading schedule..."
+                  : dashboardStats.upcomingAppointments > 0
+                  ? `${dashboardStats.upcomingAppointments} accepted/confirmed appointment(s)`
+                  : "No upcoming accepted appointments"}
+              </p>
+              {dashboardStats.upcomingAppointments > 0 && (
+                <Link to="/doctor/appointments" style={styles.viewLink}>
+                  View pending requests →
+                </Link>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Welcome Message with Enhanced Design */}
+        {/* Welcome Message */}
         <div style={styles.welcomeCard}>
           <div style={styles.welcomeIcon}>👨‍⚕️</div>
           <div style={styles.welcomeContent}>
             <h3 style={styles.welcomeTitle}>Welcome to your Practice Hub</h3>
             <p style={styles.welcomeText}>
-              Manage appointments, access patient records, and issue prescriptions all from one place.
-              Use the quick actions above to get started with your daily tasks.
+              Track your performance metrics, manage appointments, and provide excellent care to your patients.
+              The progress bars above show your practice's key performance indicators.
             </p>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes growWidth {
+          from {
+            width: 0%;
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+        
+        .stat-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+        
+        .metric-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+        }
+      `}</style>
     </div>
   );
 }
@@ -357,10 +561,6 @@ const styles = {
     gap: "16px",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
     transition: "all 0.2s ease",
-    "&:hover": {
-      transform: "translateY(-2px)",
-      boxShadow: "0 8px 24px rgba(0, 0, 0, 0.08)",
-    },
   },
   statIcon: {
     width: "48px",
@@ -382,7 +582,7 @@ const styles = {
     color: "#5e7a93",
     fontWeight: "500",
   },
-  quickActions: {
+  metricsSection: {
     marginBottom: "40px",
   },
   sectionTitle: {
@@ -391,35 +591,53 @@ const styles = {
     color: "#1a2c3e",
     marginBottom: "16px",
   },
-  actionGrid: {
+  metricsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "16px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
+    gap: "20px",
   },
-  actionCard: {
+  metricCard: {
     backgroundColor: "#ffffff",
     borderRadius: "20px",
     padding: "24px",
-    textDecoration: "none",
-    transition: "all 0.2s ease",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.04)",
-    textAlign: "center",
-    "&:hover": {
-      transform: "translateY(-4px)",
-      boxShadow: "0 12px 28px rgba(0, 0, 0, 0.12)",
-    },
+    transition: "all 0.2s ease",
   },
-  actionIcon: {
-    fontSize: "40px",
-    marginBottom: "12px",
+  metricHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    marginBottom: "16px",
   },
-  actionText: {
-    fontSize: "16px",
+  metricIcon: {
+    fontSize: "24px",
+  },
+  metricTitle: {
+    flex: 1,
+    fontSize: "15px",
     fontWeight: "600",
     color: "#1a2c3e",
-    marginBottom: "4px",
   },
-  actionDesc: {
+  metricPercentage: {
+    fontSize: "20px",
+    fontWeight: "700",
+    color: "#1e6f5c",
+  },
+  progressBarContainer: {
+    backgroundColor: "#eef2f6",
+    borderRadius: "10px",
+    height: "10px",
+    overflow: "hidden",
+    marginBottom: "12px",
+  },
+  progressBarFill: {
+    height: "100%",
+    borderRadius: "10px",
+    transition: "width 0.3s ease",
+  },
+  metricDetails: {
+    display: "flex",
+    justifyContent: "space-between",
     fontSize: "12px",
     color: "#5e7a93",
   },
@@ -507,7 +725,14 @@ const styles = {
   emptyStateText: {
     fontSize: "14px",
     color: "#5e7a93",
-    margin: 0,
+    margin: "0 0 12px 0",
+  },
+  viewLink: {
+    color: "#1e6f5c",
+    textDecoration: "none",
+    fontSize: "13px",
+    fontWeight: "600",
+    marginTop: "8px",
   },
   welcomeCard: {
     background: "linear-gradient(135deg, #1e6f5c 0%, #155a4b 100%)",
@@ -551,12 +776,29 @@ if (typeof document !== "undefined") {
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
+    @keyframes growWidth {
+      from {
+        width: 0%;
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
     button:hover:not(:disabled) {
       transform: translateY(-1px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
     a:hover {
       background-color: #f8fafc;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+    .metric-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
     }
   `;
   document.head.appendChild(styleSheet);

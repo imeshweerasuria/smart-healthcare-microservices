@@ -35,9 +35,8 @@ export default function AdminAppointments() {
     load();
   }, []);
 
-  // Filter appointments - FIXED for uppercase/lowercase status mismatch
+  // Filter appointments - UPDATED with patientName, doctorName, slotNumber search
   const filteredAppointments = list.filter((a) => {
-    // Convert both to uppercase for case-insensitive comparison
     const appointmentStatus = (a.status || "").toUpperCase();
     const filterStatus = filter.toUpperCase();
     const matchesFilter = filter === "ALL" || appointmentStatus === filterStatus;
@@ -47,8 +46,11 @@ export default function AdminAppointments() {
       searchTerm === "" ||
       (a._id || "").toLowerCase().includes(q) ||
       (a.patientId || "").toLowerCase().includes(q) ||
+      (a.patientName || "").toLowerCase().includes(q) ||
       (a.doctorId || "").toLowerCase().includes(q) ||
-      (a.reason || "").toLowerCase().includes(q);
+      (a.doctorName || "").toLowerCase().includes(q) ||
+      (a.reason || "").toLowerCase().includes(q) ||
+      String(a.slotNumber || "").toLowerCase().includes(q);
 
     return matchesFilter && matchesSearch;
   });
@@ -247,7 +249,7 @@ export default function AdminAppointments() {
               </svg>
               <input
                 type="text"
-                placeholder="Search by ID, patient, doctor, or reason..."
+                placeholder="Search by appointment ID, patient name, doctor name, slot, or reason..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={styles.searchInput}
@@ -278,7 +280,7 @@ export default function AdminAppointments() {
                     <div key={a._id} style={styles.appointmentCard} className="appointment-card">
                       <div style={styles.cardHeader}>
                         <div style={styles.cardId}>
-                          <span style={styles.idLabel}>ID:</span>
+                          <span style={styles.idLabel}>Appointment ID:</span>
                           <span style={styles.idValue}>{a._id}</span>
                         </div>
                         <div style={{ ...styles.statusBadge, backgroundColor: statusStyle.bg, color: statusStyle.text }}>
@@ -292,15 +294,38 @@ export default function AdminAppointments() {
                           <div style={styles.infoItem}>
                             <span style={styles.infoIcon}>👤</span>
                             <div>
-                              <div style={styles.infoLabel}>Patient ID</div>
-                              <div style={styles.infoValue}>{a.patientId}</div>
+                              <div style={styles.infoLabel}>Patient</div>
+                              <div style={styles.infoValue}>{a.patientName || "Unknown Patient"}</div>
+                              <div style={styles.infoSubValue}>ID: {a.patientId || "-"}</div>
                             </div>
                           </div>
+
                           <div style={styles.infoItem}>
                             <span style={styles.infoIcon}>👨‍⚕️</span>
                             <div>
-                              <div style={styles.infoLabel}>Doctor ID</div>
-                              <div style={styles.infoValue}>{a.doctorId}</div>
+                              <div style={styles.infoLabel}>Doctor</div>
+                              <div style={styles.infoValue}>{a.doctorName || "Unknown Doctor"}</div>
+                              <div style={styles.infoSubValue}>ID: {a.doctorId || "-"}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={styles.infoRow}>
+                          <div style={styles.infoItem}>
+                            <span style={styles.infoIcon}>🔢</span>
+                            <div>
+                              <div style={styles.infoLabel}>Slot Number</div>
+                              <div style={styles.infoValue}>Slot {a.slotNumber ?? "-"}</div>
+                            </div>
+                          </div>
+
+                          <div style={styles.infoItem}>
+                            <span style={styles.infoIcon}>💰</span>
+                            <div>
+                              <div style={styles.infoLabel}>Payment</div>
+                              <div style={{ ...styles.paymentBadge, backgroundColor: paymentStyle.bg, color: paymentStyle.text }}>
+                                {(a.paymentStatus || "UNKNOWN").toUpperCase()}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -309,19 +334,11 @@ export default function AdminAppointments() {
                           <div style={styles.infoItem}>
                             <span style={styles.infoIcon}>📅</span>
                             <div>
-                              <div style={styles.infoLabel}>Date & Time</div>
-                              <div style={styles.infoValue}>{formatDate(a.datetime)}</div>
+                              <div style={styles.infoLabel}>Requested On</div>
+                              <div style={styles.infoValue}>{formatDate(a.createdAt)}</div>
                             </div>
                           </div>
-                          <div style={styles.infoItem}>
-                            <span style={styles.infoIcon}>💰</span>
-                            <div>
-                              <div style={styles.infoLabel}>Payment</div>
-                              <div style={{ ...styles.paymentBadge, backgroundColor: paymentStyle.bg, color: paymentStyle.text }}>
-                                {a.paymentStatus || "UNKNOWN"}
-                              </div>
-                            </div>
-                          </div>
+
                         </div>
 
                         <div style={styles.reasonSection}>
@@ -331,21 +348,6 @@ export default function AdminAppointments() {
                             <div style={styles.reasonText}>{a.reason || "Not specified"}</div>
                           </div>
                         </div>
-
-                        {a.telemedicineLink && (
-                          <a
-                            href={a.telemedicineLink}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={styles.telemedicineLink}
-                            className="telemedicine-link"
-                          >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M10 6H6C4.89543 6 4 6.89543 4 8V18C4 19.1046 4.89543 20 6 20H16C17.1046 20 18 19.1046 18 18V14M14 4H20M20 4V10M20 4L10 14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
-                            Join Telemedicine Session
-                          </a>
-                        )}
                       </div>
                     </div>
                   );
@@ -422,11 +424,6 @@ export default function AdminAppointments() {
         button:hover:not(:disabled) {
           transform: translateY(-1px);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-        
-        .telemedicine-link:hover {
-          background-color: #c8e6d9 !important;
-          transform: translateX(2px);
         }
       `}</style>
     </div>
@@ -762,6 +759,12 @@ const styles = {
     fontWeight: "500",
     color: "#1a2c3e",
   },
+  infoSubValue: {
+    fontSize: "12px",
+    color: "#7a8fa6",
+    marginTop: "4px",
+    wordBreak: "break-all",
+  },
   paymentBadge: {
     display: "inline-block",
     padding: "4px 10px",
@@ -773,10 +776,10 @@ const styles = {
     display: "flex",
     alignItems: "flex-start",
     gap: "12px",
-    marginBottom: "20px",
     padding: "16px",
     backgroundColor: "#f8fafc",
     borderRadius: "16px",
+    borderLeft: "4px solid #1e6f5c",
   },
   reasonIcon: {
     fontSize: "18px",
@@ -785,18 +788,6 @@ const styles = {
     fontSize: "14px",
     color: "#2c3e50",
     lineHeight: "1.5",
-  },
-  telemedicineLink: {
-    display: "inline-flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "10px 20px",
-    backgroundColor: "#e8f5e9",
-    color: "#1e6f5c",
-    textDecoration: "none",
-    borderRadius: "40px",
-    fontSize: "14px",
-    fontWeight: "500",
   },
   loadingContainer: {
     display: "flex",

@@ -1,15 +1,22 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { API, authHeaders } from "../../api/client";
+import { clearSession } from "../../api/auth";
 
 export default function DoctorAvailability() {
+  const navigate = useNavigate();
   const [availability, setAvailability] = useState([]);
   const [day, setDay] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
+  const logout = () => {
+    clearSession();
+    navigate("/login");
+  };
 
   const load = async () => {
     try {
@@ -136,6 +143,10 @@ export default function DoctorAvailability() {
             <span style={styles.navIcon}>💊</span>
             <span>My Issued Prescriptions</span>
           </Link>
+          <button onClick={logout} style={styles.logoutBtn}>
+            <span style={styles.navIcon}>🚪</span>
+            <span>Logout</span>
+          </button>
         </div>
       </div>
 
@@ -305,7 +316,7 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    height: "100vh",  // ADDED: Forces full viewport height
+    height: "100vh",
     width: "100%",
     background: "#f5f7fa",
     fontFamily: "'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
@@ -413,14 +424,30 @@ const styles = {
   navIcon: {
     fontSize: "18px",
   },
+  logoutBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#d32f2f",
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: "500",
+    fontFamily: "inherit",
+    marginTop: "auto",
+    transition: "all 0.2s ease",
+  },
   mainContent: {
     flex: 1,
     marginLeft: "280px",
     padding: "32px",
     width: "calc(100% - 280px)",
     minHeight: "100vh",
-    height: "100%",  // ADDED: Takes full height
-    overflowY: "auto",  // ADDED: Enables scrolling within content
+    height: "100%",
+    overflowY: "auto",
   },
   header: {
     display: "flex",
@@ -732,6 +759,12 @@ if (typeof document !== "undefined") {
     
     .nav-item:hover {
       background-color: #f8fafc;
+      transform: translateX(4px);
+    }
+    
+    .logout-btn:hover {
+      background-color: #fee;
+      transform: translateX(4px);
     }
   `;
   document.head.appendChild(styleSheet);

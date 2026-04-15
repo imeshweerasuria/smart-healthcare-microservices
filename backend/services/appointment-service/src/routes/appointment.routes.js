@@ -18,20 +18,20 @@ const QUEUE_ALL_RELEVANT_STATUSES = ["ACCEPTED", "CONFIRMED", "COMPLETED"];
 
 // ---------------- HELPERS ----------------
 
-async function getUserContact(userId) {
-  // IMPORTANT:
-  // This assumes auth-service server uses: app.use("/auth", authRoutes)
-  // If your auth-service mount path is different, only change this one URL.
-  const res = await axios.get(`${AUTH_URL}/auth/users/${userId}/contact`);
+async function getUserContact(userId, authHeader = "") {
+  const res = await axios.get(`${AUTH_URL}/auth/users/${userId}/contact`, {
+    headers: authHeader ? { Authorization: authHeader } : {},
+  });
   return res.data;
 }
 
-async function safeGetUserContact(userId) {
+async function safeGetUserContact(userId, authHeader = "") {
   try {
-    return await getUserContact(userId);
+    return await getUserContact(userId, authHeader);
   } catch (err) {
     console.error(
       `Failed to fetch user contact for ${userId}:`,
+      err.response?.status,
       err.response?.data || err.message
     );
     return null;
@@ -71,18 +71,18 @@ async function sendSmsNotification(to, body) {
   }
 }
 
-async function loadAppointmentContacts(appt) {
+async function loadAppointmentContacts(appt, authHeader = "") {
   const [patientContact, doctorContact] = await Promise.all([
-    safeGetUserContact(appt.patientId),
-    safeGetUserContact(appt.doctorId),
+    safeGetUserContact(appt.patientId, authHeader),
+    safeGetUserContact(appt.doctorId, authHeader),
   ]);
 
   return {
-    patientName: patientContact?.name || "Patient",
+    patientName: patientContact?.name || "Unknown Patient",
     patientEmail: patientContact?.email || appt.patientEmail || "",
     patientPhone: patientContact?.phone || appt.patientPhone || "",
 
-    doctorName: doctorContact?.name || "Doctor",
+    doctorName: doctorContact?.name || "Unknown Doctor",
     doctorEmail: doctorContact?.email || "",
     doctorPhone: doctorContact?.phone || "",
   };
@@ -386,11 +386,30 @@ router.get("/me", requireAuth, requireRole("PATIENT"), async (req, res) => {
 
 router.get("/doctor/me", requireAuth, requireRole("DOCTOR"), async (req, res) => {
   try {
-    const list = await Appointment.find({ doctorId: req.user.userId }).sort({ slotNumber: 1, createdAt: 1 });
-    const enriched = await enrichAppointmentsWithQueue(list);
+    const list = await Appointment.find({ doctorId: req.user.userId }).sort({
+      slotNumber: 1,
+      createdAt: 1,
+    });
+
+    const authHeader = req.headers.authorization || "";
+
+    const enrichedAppointments = await Promise.all(
+      list.map(async (appt) => {
+        const contacts = await loadAppointmentContacts(appt, authHeader);
+
+        return {
+          ...appt.toObject(),
+          patientName: contacts.patientName || "Unknown Patient",
+          doctorName: contacts.doctorName || "Unknown Doctor",
+        };
+      })
+    );
+
+    const enriched = await enrichAppointmentsWithQueue(enrichedAppointments);
+
     res.json(enriched);
   } catch (e) {
-    console.error("Get doctor appointments error:", e.message);
+    console.error("Get doctor appointments error:", e.response?.data || e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -399,9 +418,25 @@ router.get("/doctor/me", requireAuth, requireRole("DOCTOR"), async (req, res) =>
 router.get("/admin/all", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
     const appointments = await Appointment.find().sort({ createdAt: -1 });
-    res.json(appointments);
+    const authHeader = req.headers.authorization || "";
+
+    const enrichedAppointments = await Promise.all(
+      appointments.map(async (appt) => {
+        const contacts = await loadAppointmentContacts(appt, authHeader);
+
+        return {
+          ...appt.toObject(),
+          patientName: contacts.patientName,
+          doctorName: contacts.doctorName,
+        };
+      })
+    );
+
+    const enrichedWithQueue = await enrichAppointmentsWithQueue(enrichedAppointments);
+
+    res.json(enrichedWithQueue);
   } catch (e) {
-    console.error("Error fetching all appointments:", e.message);
+    console.error("Error fetching all appointments:", e.response?.data || e.message);
     res.status(500).json({ message: "Server error" });
   }
 });
@@ -454,7 +489,8 @@ router.put("/:id/status", requireAuth, requireRole("DOCTOR"), async (req, res) =
       appt.telemedicineLink = tele.data.meetingUrl || "";
 
       // Notify BOTH patient AND doctor on acceptance
-      const contacts = await loadAppointmentContacts(appt);
+      const authHeader = req.headers.authorization || "";
+      const contacts = await loadAppointmentContacts(appt, authHeader);
 
       await Promise.all([
         // Patient notifications
@@ -506,6 +542,9 @@ router.put("/:id/confirm-payment", requireAuth, requireRole("PATIENT"), async (r
       appt.status = "CONFIRMED";
 
       // Notify both patient & doctor
+      const authHeader = req.headers.authorization || "";
+      const contacts = await loadAppointmentContacts(appt, authHeader);
+      
       await notifyConfirmedToBoth(appt);
     }
 
@@ -536,7 +575,8 @@ router.patch("/:id/cancel", requireAuth, requireRole("PATIENT"), async (req, res
     await appt.save();
 
     // Notify BOTH patient AND doctor on cancellation
-    const contacts = await loadAppointmentContacts(appt);
+    const authHeader = req.headers.authorization || "";
+    const contacts = await loadAppointmentContacts(appt, authHeader);
 
     await Promise.all([
       // Patient notifications
@@ -607,7 +647,8 @@ router.patch("/:id/reschedule", requireAuth, requireRole("PATIENT"), async (req,
     await appt.save();
 
     // Notify BOTH patient AND doctor on reschedule
-    const contacts = await loadAppointmentContacts(appt);
+    const authHeader = req.headers.authorization || "";
+    const contacts = await loadAppointmentContacts(appt, authHeader);
 
     await Promise.all([
       // Patient notifications

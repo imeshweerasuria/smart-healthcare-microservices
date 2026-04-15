@@ -7,7 +7,7 @@ import { clearSession, getName } from "../../api/auth";
 export default function PatientProfile() {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    fullName: "",  // Added fullName field
+    fullName: "",
     dateOfBirth: "",
     gender: "",
     phone: "",
@@ -19,7 +19,7 @@ export default function PatientProfile() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
-  const patientName = getName(); // Get patient name from auth
+  const patientName = getName();
 
   const showToast = (message, type = "success") => {
     setToast({ show: true, message, type });
@@ -40,20 +40,22 @@ export default function PatientProfile() {
         headers: authHeaders(),
       });
 
+      console.log("Loaded patient data:", res.data);
+
       setForm({
-        fullName: patientName || "", // Set the name from auth
+        fullName: patientName || "",
         dateOfBirth: res.data.dateOfBirth || "",
         gender: res.data.gender || "",
         phone: res.data.phone || "",
         address: res.data.address || "",
         medicalHistory: res.data.medicalHistory || "",
-        allergies: Array.isArray(res.data.allergies) ? res.data.allergies.join(", ") : "",
+        allergies: Array.isArray(res.data.allergies) ? res.data.allergies.join(", ") : (res.data.allergies || ""),
         chronicConditions: Array.isArray(res.data.chronicConditions)
           ? res.data.chronicConditions.join(", ")
-          : "",
+          : (res.data.chronicConditions || ""),
       });
     } catch (err) {
-      console.error(err);
+      console.error("Error loading profile:", err);
       showToast("Failed to load profile", "error");
     } finally {
       setLoading(false);
@@ -65,9 +67,11 @@ export default function PatientProfile() {
   }, []);
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
+    console.log(`Changing ${name} to:`, value);
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value,
+      [name]: value,
     }));
   };
 
@@ -76,7 +80,6 @@ export default function PatientProfile() {
     
     try {
       setSaving(true);
-      // Create a copy of form without the fullName field
       const profileData = {
         dateOfBirth: form.dateOfBirth,
         gender: form.gender,
@@ -101,7 +104,7 @@ export default function PatientProfile() {
 
       showToast("Profile updated successfully!", "success");
     } catch (err) {
-      console.error(err);
+      console.error("Error saving profile:", err);
       showToast(err.response?.data?.message || "Failed to update profile", "error");
     } finally {
       setSaving(false);
@@ -109,14 +112,16 @@ export default function PatientProfile() {
   };
 
   const navItems = [
+    { path: "/patient", label: "Dashboard", icon: "📊", active: false },
+    { path: "/patient/home", label: "Home", icon: "🏠", active: false },
     { path: "/patient/profile", label: "My Profile", icon: "👤", active: true },
-    { path: "/patient/medical-record", label: "My Medical Record", icon: "📋" },
-    { path: "/patient/doctors", label: "Browse Doctors", icon: "👨‍⚕️" },
-    { path: "/patient/appointments", label: "My Appointments", icon: "📅" },
-    { path: "/patient/upload", label: "Upload Medical Reports", icon: "📤" },
-    { path: "/patient/reports", label: "My Reports", icon: "📊" },
-    { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊" },
-    { path: "/patient/payments", label: "My Payments", icon: "💰" },
+    { path: "/patient/medical-record", label: "My Medical Record", icon: "📋", active: false },
+    { path: "/patient/doctors", label: "Browse Doctors", icon: "👨‍⚕️", active: false },
+    { path: "/patient/appointments", label: "My Appointments", icon: "📅", active: false },
+    { path: "/patient/upload", label: "Upload Medical Reports", icon: "📤", active: false },
+    { path: "/patient/reports", label: "My Reports", icon: "📊", active: false },
+    { path: "/patient/prescriptions", label: "My Prescriptions", icon: "💊", active: false },
+    { path: "/patient/payments", label: "My Payments", icon: "💰", active: false },
   ];
 
   if (loading) {
@@ -219,7 +224,7 @@ export default function PatientProfile() {
         </div>
       </div>
 
-      {/* Main Content - Full Width */}
+      {/* Main Content */}
       <div style={styles.mainContent}>
         <div style={styles.header}>
           <div>
@@ -377,6 +382,16 @@ export default function PatientProfile() {
             transform: translateX(0);
             opacity: 1;
           }
+        }
+        
+        input, select, textarea {
+          font-size: 14px !important;
+          color: #1a2c3e !important;
+          background-color: #ffffff !important;
+        }
+        
+        input::placeholder, textarea::placeholder {
+          color: #9aaebf !important;
         }
         
         input:focus, select:focus, textarea:focus {
@@ -620,7 +635,6 @@ const styles = {
     gap: "8px",
     gridColumn: "span 2",
   },
-  // New styles for name card
   nameCard: {
     display: "flex",
     alignItems: "center",
@@ -672,6 +686,7 @@ const styles = {
   input: {
     padding: "12px 16px",
     fontSize: "14px",
+    color: "#1a2c3e",
     border: "1.5px solid #e2e8f0",
     borderRadius: "12px",
     fontFamily: "inherit",
@@ -682,6 +697,7 @@ const styles = {
   select: {
     padding: "12px 16px",
     fontSize: "14px",
+    color: "#1a2c3e",
     border: "1.5px solid #e2e8f0",
     borderRadius: "12px",
     fontFamily: "inherit",
@@ -693,6 +709,7 @@ const styles = {
   textarea: {
     padding: "12px 16px",
     fontSize: "14px",
+    color: "#1a2c3e",
     border: "1.5px solid #e2e8f0",
     borderRadius: "12px",
     fontFamily: "inherit",
@@ -788,6 +805,16 @@ styleSheet.textContent = `
   
   @keyframes spin {
     to { transform: rotate(360deg); }
+  }
+  
+  input, select, textarea {
+    font-size: 14px !important;
+    color: #1a2c3e !important;
+    background-color: #ffffff !important;
+  }
+  
+  input::placeholder, textarea::placeholder {
+    color: #9aaebf !important;
   }
   
   input:focus, select:focus, textarea:focus {

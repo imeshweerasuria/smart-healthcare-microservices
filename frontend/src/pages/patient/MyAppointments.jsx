@@ -177,6 +177,8 @@ export default function MyAppointments() {
   };
 
   const navItems = [
+    { path: "/patient", label: "Dashboard", icon: "📊", active: false },
+    { path: "/patient/home", label: "Home", icon: "🏠", active: false },
     { path: "/patient/profile", label: "My Profile", icon: "👤" },
     { path: "/patient/medical-record", label: "My Medical Record", icon: "📋" },
     { path: "/patient/doctors", label: "Browse Doctors", icon: "👨‍⚕️" },
